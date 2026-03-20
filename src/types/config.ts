@@ -1,0 +1,69 @@
+export type OsPath = {
+  macos?: string;
+  windows?: string;
+};
+
+export type OsCommand = {
+  macos?: string;
+  windows?: string;
+};
+
+export type UrlTarget = {
+  type: "url";
+  value: string;
+  label?: string;
+};
+
+export type DirectoryTarget = {
+  type: "directory";
+  path: OsPath;
+  label?: string;
+};
+
+export type ApplicationTarget = {
+  type: "application";
+  name: string;
+  path: OsPath;
+  args?: string[];
+  command?: OsCommand;
+};
+
+export type Target = UrlTarget | DirectoryTarget | ApplicationTarget;
+
+export type ExitAction = "nothing" | "close" | "minimize";
+
+export type Mode = {
+  id: string;
+  name: string;
+  description?: string;
+  shortcut?: string;
+  color?: string;
+  icon?: string;
+  keepAliveApps?: string[];
+  exitAction?: ExitAction;
+  targets: Target[];
+};
+
+export type Config = {
+  version: number;
+  configDir?: string;
+  modes: Mode[];
+};
+
+export type ExecutionResult = {
+  targetIndex: number;
+  target: Target;
+  success: boolean;
+  error?: string;
+};
+
+export type ModeExecutionResult = {
+  modeId: string;
+  results: ExecutionResult[];
+};
+
+export type AppSettings = {
+  configFilePath?: string;
+  theme?: "light" | "dark" | "system";
+  language?: "en" | "ja";
+};
