@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for FlowSwitch",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "fs:default",
+    "dialog:default",
+    "shell:default",
+    "opener:default",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "global-shortcut:allow-is-registered"
+  ]
+}
