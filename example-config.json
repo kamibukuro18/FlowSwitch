@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "modes": [
+    {
+      "id": "dev",
+      "name": "Development",
+      "description": "Start coding environment",
+      "shortcut": "CmdOrCtrl+Shift+1",
+      "color": "#6366f1",
+      "icon": "⌨️",
+      "keepAliveApps": ["Slack"],
+      "exitAction": "minimize",
+      "targets": [
+        {
+          "type": "url",
+          "value": "https://github.com",
+          "label": "GitHub"
+        },
+        {
+          "type": "url",
+          "value": "http://localhost:3000",
+          "label": "Local Dev Server"
+        },
+        {
+          "type": "directory",
+          "label": "Projects Folder",
+          "path": {
+            "macos": "~/Projects",
+            "windows": "%USERPROFILE%\\Projects"
+          }
+        },
+        {
+          "type": "application",
+          "name": "VSCode",
+          "path": {
+            "macos": "/Applications/Visual Studio Code.app",
+            "windows": "C:\\Users\\USER\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
+          },
+          "args": []
+        }
+      ]
+    },
+    {
+      "id": "writing",
+      "name": "Writing",
+      "description": "Focus mode for writing and research",
+      "shortcut": "CmdOrCtrl+Shift+2",
+      "color": "#22d3a4",
+      "icon": "✍️",
+      "exitAction": "nothing",
+      "targets": [
+        {
+          "type": "url",
+          "value": "https://notion.so",
+          "label": "Notion"
+        },
+        {
+          "type": "url",
+          "value": "https://claude.ai",
+          "label": "Claude AI"
+        },
+        {
+          "type": "url",
+          "value": "https://chatgpt.com",
+          "label": "ChatGPT"
+        },
+        {
+          "type": "directory",
+          "label": "Documents",
+          "path": {
+            "macos": "~/Documents",
+            "windows": "%USERPROFILE%\\Documents"
+          }
+        }
+      ]
+    },
+    {
+      "id": "design",
+      "name": "Design",
+      "description": "Creative and design work",
+      "shortcut": "CmdOrCtrl+Shift+3",
+      "color": "#f59e0b",
+      "icon": "🎨",
+      "exitAction": "nothing",
+      "targets": [
+        {
+          "type": "url",
+          "value": "https://figma.com",
+          "label": "Figma"
+        },
+        {
+          "type": "url",
+          "value": "https://dribbble.com",
+          "label": "Dribbble"
+        },
+        {
+          "type": "application",
+          "name": "Spotify",
+          "path": {
+            "macos": "/Applications/Spotify.app",
+            "windows": "%APPDATA%\\Spotify\\Spotify.exe"
+          }
+        },
+        {
+          "type": "directory",
+          "label": "Design Assets",
+          "path": {
+            "macos": "~/Design",
+            "windows": "%USERPROFILE%\\Design"
+          }
+        }
+      ]
+    }
+  ]
+}
