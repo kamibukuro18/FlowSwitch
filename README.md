@@ -57,6 +57,8 @@ cargo install tauri-cli --version "^2"
 npm run tauri dev
 ```
 
+> **注意**: `tauri` コマンドを直接実行しないでください。必ず `npm run tauri dev` を使用してください。
+
 ブラウザは開きません。デスクトップウィンドウが起動します。
 
 ### プロダクションビルド
