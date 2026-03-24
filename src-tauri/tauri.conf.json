@@ -19,11 +19,13 @@
         "minHeight": 500,
         "resizable": true,
         "decorations": true,
-        "center": true
+        "center": true,
+        "dragDropEnabled": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "capabilities": ["default"]
     }
   },
   "bundle": {

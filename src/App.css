@@ -18,19 +18,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 20px;
-  background: rgba(244, 63, 94, 0.15);
-  border-bottom: 1px solid rgba(244, 63, 94, 0.3);
+  padding: 8px 20px;
+  background: rgba(255, 69, 58, 0.1);
+  border-bottom: 1px solid rgba(255, 69, 58, 0.16);
   color: var(--accent-danger);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .error-banner button {
   background: none;
   color: var(--accent-danger);
-  font-size: 16px;
+  font-size: 14px;
   padding: 2px 6px;
-  opacity: 0.7;
+  opacity: 0.6;
   transition: opacity 0.15s;
 }
 

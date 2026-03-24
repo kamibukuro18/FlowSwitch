@@ -61,6 +61,8 @@ pub struct Mode {
     pub keep_alive_apps: Vec<String>,
     #[serde(default)]
     pub exit_action: ExitAction,
+    #[serde(default)]
+    pub close_others_on_launch: bool,
     pub targets: Vec<Target>,
 }
 

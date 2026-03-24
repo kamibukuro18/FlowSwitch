@@ -10,7 +10,7 @@ export function Sidebar({ store }: Props) {
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-logo">
+      <div className="sidebar-logo" data-tauri-drag-region>
         <div className="logo-icon">⚡</div>
         <span className="logo-text">FlowSwitch</span>
       </div>

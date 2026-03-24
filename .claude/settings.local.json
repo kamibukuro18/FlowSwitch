@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"require.resolve\\(''@tauri-apps/api/webview''\\)\")",
+      "Bash(node -e \"const pkg = require\\(''./node_modules/@tauri-apps/api/package.json''\\); console.log\\(pkg.version\\)\")"
+    ]
+  }
+}

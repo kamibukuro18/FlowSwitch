@@ -41,6 +41,7 @@ export type Mode = {
   icon?: string;
   keepAliveApps?: string[];
   exitAction?: ExitAction;
+  closeOthersOnLaunch?: boolean;
   targets: Target[];
 };
 

@@ -11,8 +11,11 @@ const CURRENT_OS: &str = "windows";
 const CURRENT_OS: &str = "linux";
 
 pub fn execute_mode(mode: &Mode) -> ModeExecutionResult {
-    let mut results = Vec::new();
+    if mode.close_others_on_launch {
+        close_browsers();
+    }
 
+    let mut results = Vec::new();
     for (index, target) in mode.targets.iter().enumerate() {
         let result = execute_target(index, target);
         results.push(result);
@@ -21,6 +24,21 @@ pub fn execute_mode(mode: &Mode) -> ModeExecutionResult {
     ModeExecutionResult {
         mode_id: mode.id.clone(),
         results,
+    }
+}
+
+fn close_browsers() {
+    #[cfg(target_os = "windows")]
+    {
+        for process in &["chrome.exe", "msedge.exe", "firefox.exe", "opera.exe", "brave.exe"] {
+            let _ = Command::new("taskkill").args(["/F", "/IM", process]).output();
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        for app in &["Google Chrome", "Microsoft Edge", "Firefox", "Opera", "Brave Browser", "Safari"] {
+            let _ = Command::new("pkill").args(["-x", app]).output();
+        }
     }
 }
 

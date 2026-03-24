@@ -28,9 +28,12 @@ pub fn run() {
             load_settings,
             save_settings,
             get_default_config_path,
+            check_path_type,
             select_file,
             select_directory,
             register_shortcuts,
+            get_browser_tabs,
+            get_browser_bookmarks,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
