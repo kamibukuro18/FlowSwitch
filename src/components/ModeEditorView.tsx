@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { readTextFile } from "@tauri-apps/plugin-fs";
+import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "../store/appStore";
 import { Mode, Target, UrlTarget, DirectoryTarget, ApplicationTarget } from "../types";
 import { selectFile, selectDirectory, getBrowserBookmarks, checkPathType, BookmarkItem } from "../hooks/useTauri";
@@ -64,7 +63,8 @@ export function ModeEditorView({ store }: Props) {
       .map((u) => u.trim())
       .filter((u) => u.startsWith("http"))
       .map((url) => ({ type: "url" as const, value: url, label: "" }));
-    if (newTargets.length > 0) update({ targets: [...mode.targets, ...newTargets] });
+    if (newTargets.length > 0)
+      setMode((m) => ({ ...m, targets: [...m.targets, ...newTargets] }));
   }
 
   function updateTarget(index: number, patch: Partial<Target>) {
@@ -151,103 +151,57 @@ export function ModeEditorView({ store }: Props) {
     setActiveTab(null);
   }
 
-  // ── Drag & drop ───────────────────────────────────────
+  // ── Drag & drop (via custom Rust IDropTarget → Tauri events) ─────────────
 
-  // File drops from Explorer/Finder: use Tauri's onDragDropEvent (provides real FS paths)
   useEffect(() => {
     let active = true;
-    let unlisten: (() => void) | undefined;
+    let unlistens: Array<() => void> = [];
 
-    getCurrentWebview().onDragDropEvent(async (event) => {
-      const p = event.payload;
-      if (p.type === "enter" || p.type === "over") {
-        setIsDragOver(true);
-      } else if (p.type === "leave") {
+    const reg = async () => {
+      const u1 = await listen<void>("app-drag-enter", () => { if (active) setIsDragOver(true); });
+      const u2 = await listen<void>("app-drag-leave", () => { if (active) setIsDragOver(false); });
+      const u3 = await listen<{ paths: string[]; url: string | null }>("app-drop", async (ev) => {
+        if (!active) return;
         setIsDragOver(false);
-      } else if (p.type === "drop") {
-        setIsDragOver(false);
-        if (p.paths && p.paths.length > 0) {
-          const urlsToAdd: string[] = [];
-          const filePaths: string[] = [];
+        const { paths, url } = ev.payload;
 
-          // Separate Windows URL shortcuts (.url) from actual files/dirs
-          for (const path of p.paths) {
-            if (path.toLowerCase().endsWith(".url")) {
-              // Chrome URL drag on Windows creates a virtual .url shortcut file
-              try {
-                const content = await readTextFile(path);
-                const match = content.match(/^URL=(.+)$/m);
-                if (match?.[1]?.startsWith("http")) urlsToAdd.push(match[1].trim());
-              } catch { /* virtual file might not exist on disk */ }
-            } else {
-              filePaths.push(path);
-            }
-          }
+        if (url) { addUrlTargets([url]); return; }
 
-          if (urlsToAdd.length > 0) addUrlTargets(urlsToAdd);
-
-          if (filePaths.length > 0) {
-            const results = await Promise.all(
-              filePaths.map(async (path) => {
-                const kind = await checkPathType(path).catch(() => "file" as const);
-                const name = path.split(/[/\\]/).pop() ?? path;
-                const isWin = /^[A-Za-z]:/.test(path);
-                if (kind === "app") {
-                  return {
-                    type: "application" as const,
-                    name: name.replace(/\.(exe|app|msi|dmg|pkg|bat|cmd|sh)$/i, ""),
-                    path: isWin ? { macos: "", windows: path } : { macos: path, windows: "" },
-                    args: [],
-                  } satisfies Target;
-                } else if (kind === "dir") {
-                  return {
-                    type: "directory" as const,
-                    label: name,
-                    path: isWin ? { macos: "", windows: path } : { macos: path, windows: "" },
-                  } satisfies Target;
-                }
-                return null;
-              })
-            );
-            const newTargets = results.filter((t): t is Target => t !== null);
-            if (newTargets.length > 0) {
-              setMode((m) => ({ ...m, targets: [...m.targets, ...newTargets] }));
-            }
-          }
+        if (paths.length > 0) {
+          const results = await Promise.all(paths.map(async (p) => {
+            const kind = await checkPathType(p).catch(() => "file" as const);
+            const name = p.split(/[/\\]/).pop() ?? p;
+            const isWin = /^[A-Za-z]:/.test(p);
+            if (kind === "app") return {
+              type: "application" as const,
+              name: name.replace(/\.(exe|app|msi|dmg|pkg|bat|cmd|sh)$/i, ""),
+              path: isWin ? { macos: "", windows: p } : { macos: p, windows: "" },
+              args: [],
+            } satisfies Target;
+            if (kind === "dir") return {
+              type: "directory" as const,
+              label: name,
+              path: isWin ? { macos: "", windows: p } : { macos: p, windows: "" },
+            } satisfies Target;
+            return null;
+          }));
+          const newTargets = results.filter((t): t is Target => t !== null);
+          if (newTargets.length > 0) setMode((m) => ({ ...m, targets: [...m.targets, ...newTargets] }));
         }
-      }
-    }).then((fn) => {
-      if (!active) { fn(); return; }
-      unlisten = fn;
-    });
-
-    return () => {
-      active = false;
-      unlisten?.();
+      });
+      if (active) unlistens = [u1, u2, u3];
+      else { u1(); u2(); u3(); }
     };
+    reg();
+
+    return () => { active = false; unlistens.forEach((fn) => fn()); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // URL drops from browser (address bar / link drag): handled via React onDrop
-  // dragDropEnabled:true means Tauri intercepts file drops, but browser URL drags
-  // still reach React's onDrop with text/uri-list data.
-  function handleDragOver(e: React.DragEvent) {
-    e.preventDefault();
-  }
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
-    const uriList = e.dataTransfer.getData("text/uri-list");
-    const plain = e.dataTransfer.getData("text/plain");
-    const raw = uriList || plain;
-    const httpUrls = raw
-      .split(/[\n\r]+/)
-      .map((u) => u.trim())
-      .filter((u) => u.startsWith("http"));
-    if (httpUrls.length > 0) {
-      addUrlTargets(httpUrls);
-    }
-  }
+  // DragOver/Leave still needed so the browser shows the correct drop cursor
+  function handleDragOver(e: React.DragEvent) { e.preventDefault(); }
+  function handleDragLeave() { /* handled via Rust event */ }
+  function handleDrop(e: React.DragEvent) { e.preventDefault(); } // prevent browser default
 
   return (
     <div className="editor-view">
@@ -287,6 +241,7 @@ export function ModeEditorView({ store }: Props) {
         <div
           className={`editor-section drop-zone ${isDragOver ? "drag-over" : ""}`}
           onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
           <div className="section-header">
