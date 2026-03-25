@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAppStore } from "../store/appStore";
 import { ModeCard } from "./ModeCard";
 import { executeMode, loadConfig } from "../hooks/useTauri";
+import { t, Lang } from "../i18n";
 import "./ModeListView.css";
 
 type Props = {
@@ -12,6 +13,7 @@ type SortKey = "name" | "targets" | "default";
 
 export function ModeListView({ store }: Props) {
   const { state, setConfig, setLastExecutionResult, navigateTo, startEditingMode, deleteMode, setError, setLoading, setSearchQuery } = store;
+  const lang = (state.settings.language ?? "en") as Lang;
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [executingId, setExecutingId] = useState<string | null>(null);
 
@@ -73,7 +75,7 @@ export function ModeListView({ store }: Props) {
             <span className="search-icon">⌕</span>
             <input
               type="text"
-              placeholder="Search modes..."
+              placeholder={t(lang, "search_placeholder")}
               value={state.searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -83,11 +85,11 @@ export function ModeListView({ store }: Props) {
             onChange={(e) => setSortKey(e.target.value as SortKey)}
             className="sort-select"
           >
-            <option value="default">Default order</option>
-            <option value="name">Sort by name</option>
-            <option value="targets">Sort by targets</option>
+            <option value="default">{t(lang, "sort_default")}</option>
+            <option value="name">{t(lang, "sort_name")}</option>
+            <option value="targets">{t(lang, "sort_targets")}</option>
           </select>
-          <button className="btn-icon" onClick={handleReload} title="Reload config">
+          <button className="btn-icon" onClick={handleReload} title={t(lang, "reload_config")}>
             ↺
           </button>
         </div>
@@ -98,15 +100,15 @@ export function ModeListView({ store }: Props) {
           {state.searchQuery ? (
             <>
               <div className="empty-icon">⌕</div>
-              <p>No modes match "{state.searchQuery}"</p>
+              <p>{t(lang, "no_match", state.searchQuery)}</p>
               <button className="btn-secondary" onClick={() => setSearchQuery("")}>
-                Clear search
+                {t(lang, "clear_search")}
               </button>
             </>
           ) : (
             <>
               <div className="empty-icon">⊞</div>
-              <p>No modes yet. Create your first mode!</p>
+              <p>{t(lang, "no_modes")}</p>
               <button
                 className="btn-primary"
                 onClick={() =>
@@ -119,7 +121,7 @@ export function ModeListView({ store }: Props) {
                   })
                 }
               >
-                + Create Mode
+                {t(lang, "create_mode")}
               </button>
             </>
           )}
@@ -130,6 +132,7 @@ export function ModeListView({ store }: Props) {
             <ModeCard
               key={mode.id}
               mode={mode}
+              lang={lang}
               isExecuting={executingId === mode.id}
               onExecute={() => handleExecute(mode.id)}
               onEdit={() => startEditingMode(mode)}

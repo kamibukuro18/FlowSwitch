@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "../store/appStore";
 import { Mode, Target, UrlTarget, DirectoryTarget, ApplicationTarget } from "../types";
 import { selectFile, selectDirectory, getBrowserBookmarks, checkPathType, BookmarkItem } from "../hooks/useTauri";
+import { t, Lang } from "../i18n";
 import "./ModeEditorView.css";
 
 type Props = {
@@ -11,6 +12,7 @@ type Props = {
 
 export function ModeEditorView({ store }: Props) {
   const { state, saveMode, navigateTo } = store;
+  const lang = (state.settings.language ?? "en") as Lang;
   const initialMode = state.editingMode!;
 
   const [mode, setMode] = useState<Mode>({ ...initialMode });
@@ -168,21 +170,21 @@ export function ModeEditorView({ store }: Props) {
         if (url) { addUrlTargets([url]); return; }
 
         if (paths.length > 0) {
-          const results = await Promise.all(paths.map(async (p) => {
+          const results = await Promise.all(paths.map(async (p): Promise<Target | null> => {
             const kind = await checkPathType(p).catch(() => "file" as const);
             const name = p.split(/[/\\]/).pop() ?? p;
             const isWin = /^[A-Za-z]:/.test(p);
             if (kind === "app") return {
-              type: "application" as const,
+              type: "application",
               name: name.replace(/\.(exe|app|msi|dmg|pkg|bat|cmd|sh)$/i, ""),
               path: isWin ? { macos: "", windows: p } : { macos: p, windows: "" },
               args: [],
-            } satisfies Target;
+            };
             if (kind === "dir") return {
-              type: "directory" as const,
+              type: "directory",
               label: name,
               path: isWin ? { macos: "", windows: p } : { macos: p, windows: "" },
-            } satisfies Target;
+            };
             return null;
           }));
           const newTargets = results.filter((t): t is Target => t !== null);
@@ -206,33 +208,51 @@ export function ModeEditorView({ store }: Props) {
   return (
     <div className="editor-view">
       <div className="editor-header">
-        <button className="back-btn" onClick={() => navigateTo("modes")}>← Back</button>
-        <h2>{initialMode.name ? `Edit: ${initialMode.name}` : "New Mode"}</h2>
-        <button className="btn-save" onClick={handleSave}>Save</button>
+        <button className="back-btn" onClick={() => navigateTo("modes")}>{t(lang, "back")}</button>
+        <h2>{initialMode.name ? t(lang, "edit_mode_title", initialMode.name) : t(lang, "new_mode")}</h2>
+        <button className="btn-save" onClick={handleSave}>{t(lang, "save")}</button>
       </div>
 
       <div className="editor-content">
         {/* Basic Info */}
         <div className="editor-section">
-          <h3 className="section-title">Basic Info</h3>
+          <h3 className="section-title">{t(lang, "basic_info")}</h3>
           <div className="form-group">
-            <label>Mode Name *</label>
+            <label>{t(lang, "mode_name_label")}</label>
             <input
               type="text"
               value={mode.name}
               onChange={(e) => update({ name: e.target.value })}
-              placeholder="e.g. Development, Writing..."
+              placeholder={t(lang, "mode_name_ph")}
               className={errors.name ? "error" : ""}
             />
-            {errors.name && <span className="field-error">{errors.name}</span>}
+            {errors.name && <span className="field-error">{t(lang, "mode_name_required")}</span>}
           </div>
           <div className="toggle-row">
-            <label className="toggle-label">Launch 時に他のブラウザを閉じる</label>
+            <label className="toggle-label">{t(lang, "close_others")}</label>
             <button
               className={`toggle-btn ${mode.closeOthersOnLaunch ? "on" : "off"}`}
               onClick={() => update({ closeOthersOnLaunch: !mode.closeOthersOnLaunch })}
             >
               {mode.closeOthersOnLaunch ? "ON" : "OFF"}
+            </button>
+          </div>
+          <div className="toggle-row">
+            <label className="toggle-label">{t(lang, "close_apps")}</label>
+            <button
+              className={`toggle-btn ${mode.closeAppsOnLaunch ? "on" : "off"}`}
+              onClick={() => update({ closeAppsOnLaunch: !mode.closeAppsOnLaunch })}
+            >
+              {mode.closeAppsOnLaunch ? "ON" : "OFF"}
+            </button>
+          </div>
+          <div className="toggle-row">
+            <label className="toggle-label">{t(lang, "close_dirs")}</label>
+            <button
+              className={`toggle-btn ${mode.closeDirectoriesOnLaunch ? "on" : "off"}`}
+              onClick={() => update({ closeDirectoriesOnLaunch: !mode.closeDirectoriesOnLaunch })}
+            >
+              {mode.closeDirectoriesOnLaunch ? "ON" : "OFF"}
             </button>
           </div>
         </div>
@@ -245,9 +265,9 @@ export function ModeEditorView({ store }: Props) {
           onDrop={handleDrop}
         >
           <div className="section-header">
-            <h3 className="section-title">Targets ({mode.targets.length})</h3>
+            <h3 className="section-title">{t(lang, "targets_header", mode.targets.length)}</h3>
             {mode.targets.length > 0 && (
-              <button className="add-target-btn danger" onClick={() => update({ targets: [] })}>全て削除</button>
+              <button className="add-target-btn danger" onClick={() => update({ targets: [] })}>{t(lang, "delete_all")}</button>
             )}
           </div>
 
@@ -259,10 +279,10 @@ export function ModeEditorView({ store }: Props) {
                 className={`add-tab-btn ${activeTab === tab ? "active" : ""}`}
                 onClick={tab === "bookmarks" ? handleTabBookmarks : () => toggleTab(tab)}
               >
-                {tab === "paste" && "+ URLをペースト"}
-                {tab === "bookmarks" && "+ ブックマーク"}
-                {tab === "app" && "+ App"}
-                {tab === "dir" && "+ Dir"}
+                {tab === "paste" && t(lang, "tab_paste")}
+                {tab === "bookmarks" && t(lang, "tab_bookmarks")}
+                {tab === "app" && t(lang, "tab_app")}
+                {tab === "dir" && t(lang, "tab_dir")}
               </button>
             ))}
           </div>
@@ -274,12 +294,12 @@ export function ModeEditorView({ store }: Props) {
                 className="paste-textarea"
                 value={pasteText}
                 onChange={(e) => setPasteText(e.target.value)}
-                placeholder={"URLを貼り付け（複数可・1行1URL）\nhttps://github.com\nhttps://notion.so"}
+                placeholder={t(lang, "paste_ph")}
                 autoFocus
               />
               <div className="tab-panel-footer">
-                <button className="btn-save" onClick={handlePasteAdd} disabled={!pasteText.trim()}>追加</button>
-                <button className="back-btn" onClick={() => { setActiveTab(null); setPasteText(""); }}>キャンセル</button>
+                <button className="btn-save" onClick={handlePasteAdd} disabled={!pasteText.trim()}>{t(lang, "add")}</button>
+                <button className="back-btn" onClick={() => { setActiveTab(null); setPasteText(""); }}>{t(lang, "cancel")}</button>
               </div>
             </div>
           )}
@@ -290,20 +310,22 @@ export function ModeEditorView({ store }: Props) {
                 <input
                   className="bookmark-search"
                   type="text"
-                  placeholder="ブックマークを検索..."
+                  placeholder={t(lang, "bookmark_search_ph")}
                   value={bookmarkSearch}
                   onChange={(e) => setBookmarkSearch(e.target.value)}
                   autoFocus
                 />
                 <span className="bookmark-count">
-                  {selectedUrls.size > 0 ? `${selectedUrls.size} 件選択` : `${filteredBookmarks.length} 件`}
+                  {selectedUrls.size > 0
+                    ? t(lang, "selected_count", selectedUrls.size)
+                    : t(lang, "count_items", filteredBookmarks.length)}
                 </span>
               </div>
               {bookmarksLoading ? (
-                <div className="bookmark-loading">読み込み中...</div>
+                <div className="bookmark-loading">{t(lang, "loading")}</div>
               ) : filteredBookmarks.length === 0 ? (
                 <div className="bookmark-loading">
-                  {bookmarks.length === 0 ? "Chrome / Edge / Brave のブックマークが見つかりません" : "一致するブックマークがありません"}
+                  {bookmarks.length === 0 ? t(lang, "no_bookmarks") : t(lang, "no_matching_bookmarks")}
                 </div>
               ) : (
                 <div className="bookmark-list">
@@ -320,15 +342,15 @@ export function ModeEditorView({ store }: Props) {
               )}
               <div className="tab-panel-footer">
                 <button className="btn-save" onClick={handleAddBookmarks} disabled={selectedUrls.size === 0}>
-                  {selectedUrls.size > 0 ? `${selectedUrls.size} 件を追加` : "追加"}
+                  {selectedUrls.size > 0 ? t(lang, "add_selected", selectedUrls.size) : t(lang, "add")}
                 </button>
                 <button className="back-btn" onClick={() => {
                   const allSelected = filteredBookmarks.every((b) => selectedUrls.has(b.url));
                   setSelectedUrls(allSelected ? new Set() : new Set(filteredBookmarks.map((b) => b.url)));
                 }}>
-                  {filteredBookmarks.every((b) => selectedUrls.has(b.url)) ? "全解除" : "全選択"}
+                  {filteredBookmarks.every((b) => selectedUrls.has(b.url)) ? t(lang, "deselect_all") : t(lang, "select_all")}
                 </button>
-                <button className="back-btn" onClick={() => { setActiveTab(null); setBookmarkSearch(""); }}>閉じる</button>
+                <button className="back-btn" onClick={() => { setActiveTab(null); setBookmarkSearch(""); }}>{t(lang, "close")}</button>
               </div>
             </div>
           )}
@@ -336,30 +358,30 @@ export function ModeEditorView({ store }: Props) {
           {activeTab === "app" && (
             <div className="tab-panel">
               <div className="form-group">
-                <label>Application Name</label>
+                <label>{t(lang, "app_name_label")}</label>
                 <input type="text" value={newApp.name} onChange={(e) => setNewApp((a) => ({ ...a, name: e.target.value }))} placeholder="VSCode, Spotify..." autoFocus />
               </div>
               <div className="form-group">
-                <label>macOS Path (.app)</label>
+                <label>{t(lang, "macos_path_app")}</label>
                 <div className="path-row">
                   <input type="text" value={newApp.path.macos ?? ""} onChange={(e) => setNewApp((a) => ({ ...a, path: { ...a.path, macos: e.target.value } }))} placeholder="/Applications/Visual Studio Code.app" />
-                  <button className="browse-btn" onClick={() => browseForApp("macos")}>Browse</button>
+                  <button className="browse-btn" onClick={() => browseForApp("macos")}>{t(lang, "browse")}</button>
                 </div>
               </div>
               <div className="form-group">
-                <label>Windows Path (.exe)</label>
+                <label>{t(lang, "windows_path_exe")}</label>
                 <div className="path-row">
                   <input type="text" value={newApp.path.windows ?? ""} onChange={(e) => setNewApp((a) => ({ ...a, path: { ...a.path, windows: e.target.value } }))} placeholder="C:\...\Code.exe" />
-                  <button className="browse-btn" onClick={() => browseForApp("windows")}>Browse</button>
+                  <button className="browse-btn" onClick={() => browseForApp("windows")}>{t(lang, "browse")}</button>
                 </div>
               </div>
               <div className="form-group">
-                <label>Launch Arguments (optional)</label>
+                <label>{t(lang, "launch_args")}</label>
                 <input type="text" value={(newApp.args ?? []).join(" ")} onChange={(e) => setNewApp((a) => ({ ...a, args: e.target.value ? e.target.value.split(" ") : [] }))} placeholder="--new-window" />
               </div>
               <div className="tab-panel-footer">
-                <button className="btn-save" onClick={handleAddApp} disabled={!newApp.name.trim()}>追加</button>
-                <button className="back-btn" onClick={() => setActiveTab(null)}>キャンセル</button>
+                <button className="btn-save" onClick={handleAddApp} disabled={!newApp.name.trim()}>{t(lang, "add")}</button>
+                <button className="back-btn" onClick={() => setActiveTab(null)}>{t(lang, "cancel")}</button>
               </div>
             </div>
           )}
@@ -367,36 +389,34 @@ export function ModeEditorView({ store }: Props) {
           {activeTab === "dir" && (
             <div className="tab-panel">
               <div className="form-group">
-                <label>Label (optional)</label>
+                <label>{t(lang, "label_optional")}</label>
                 <input type="text" value={newDir.label ?? ""} onChange={(e) => setNewDir((d) => ({ ...d, label: e.target.value }))} placeholder="My Projects..." autoFocus />
               </div>
               <div className="form-group">
-                <label>macOS Path</label>
+                <label>{t(lang, "macos_path")}</label>
                 <div className="path-row">
                   <input type="text" value={newDir.path.macos ?? ""} onChange={(e) => setNewDir((d) => ({ ...d, path: { ...d.path, macos: e.target.value } }))} placeholder="~/Projects/myapp" />
-                  <button className="browse-btn" onClick={() => browseForDir("macos")}>Browse</button>
+                  <button className="browse-btn" onClick={() => browseForDir("macos")}>{t(lang, "browse")}</button>
                 </div>
               </div>
               <div className="form-group">
-                <label>Windows Path</label>
+                <label>{t(lang, "windows_path")}</label>
                 <div className="path-row">
                   <input type="text" value={newDir.path.windows ?? ""} onChange={(e) => setNewDir((d) => ({ ...d, path: { ...d.path, windows: e.target.value } }))} placeholder="%USERPROFILE%\Projects\myapp" />
-                  <button className="browse-btn" onClick={() => browseForDir("windows")}>Browse</button>
+                  <button className="browse-btn" onClick={() => browseForDir("windows")}>{t(lang, "browse")}</button>
                 </div>
               </div>
               <div className="tab-panel-footer">
-                <button className="btn-save" onClick={handleAddDir} disabled={!newDir.path.macos && !newDir.path.windows}>追加</button>
-                <button className="back-btn" onClick={() => setActiveTab(null)}>キャンセル</button>
+                <button className="btn-save" onClick={handleAddDir} disabled={!newDir.path.macos && !newDir.path.windows}>{t(lang, "add")}</button>
+                <button className="back-btn" onClick={() => setActiveTab(null)}>{t(lang, "cancel")}</button>
               </div>
             </div>
           )}
 
-          {isDragOver && <div className="drop-hint">URLをここにドロップ</div>}
+          {isDragOver && <div className="drop-hint">{t(lang, "drop_hint")}</div>}
 
           {mode.targets.length === 0 && !activeTab && !isDragOver && (
-            <div className="targets-empty">
-              URLやアプリ、フォルダをドラッグ&ドロップするか、上のタブで追加してください。
-            </div>
+            <div className="targets-empty">{t(lang, "targets_empty")}</div>
           )}
 
           <div className="targets-list">
@@ -406,6 +426,7 @@ export function ModeEditorView({ store }: Props) {
                 target={target}
                 index={index}
                 total={mode.targets.length}
+                lang={lang}
                 onChange={(patch) => updateTarget(index, patch)}
                 onRemove={() => removeTarget(index)}
                 onMoveUp={index > 0 ? () => moveTarget(index, index - 1) : undefined}
@@ -425,14 +446,19 @@ type TargetEditorProps = {
   target: Target;
   index: number;
   total: number;
+  lang: Lang;
   onChange: (patch: Partial<Target>) => void;
   onRemove: () => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
 };
 
-function TargetEditor({ target, onChange, onRemove, onMoveUp, onMoveDown }: TargetEditorProps) {
-  const typeLabel = { url: "URL", directory: "Directory", application: "Application" };
+function TargetEditor({ target, lang, onChange, onRemove, onMoveUp, onMoveDown }: TargetEditorProps) {
+  const typeLabel = {
+    url: t(lang, "type_url"),
+    directory: t(lang, "type_dir"),
+    application: t(lang, "type_app"),
+  };
   return (
     <div className={`target-editor target-type-${target.type}`}>
       <div className="target-editor-header">
@@ -443,29 +469,29 @@ function TargetEditor({ target, onChange, onRemove, onMoveUp, onMoveDown }: Targ
           <button className="target-action-btn remove" onClick={onRemove}>✕</button>
         </div>
       </div>
-      {target.type === "url" && <UrlTargetEditor target={target} onChange={onChange as (p: Partial<UrlTarget>) => void} />}
-      {target.type === "directory" && <DirectoryTargetEditor target={target} onChange={onChange as (p: Partial<DirectoryTarget>) => void} />}
-      {target.type === "application" && <AppTargetEditor target={target} onChange={onChange as (p: Partial<ApplicationTarget>) => void} />}
+      {target.type === "url" && <UrlTargetEditor target={target} lang={lang} onChange={onChange as (p: Partial<UrlTarget>) => void} />}
+      {target.type === "directory" && <DirectoryTargetEditor target={target} lang={lang} onChange={onChange as (p: Partial<DirectoryTarget>) => void} />}
+      {target.type === "application" && <AppTargetEditor target={target} lang={lang} onChange={onChange as (p: Partial<ApplicationTarget>) => void} />}
     </div>
   );
 }
 
-function UrlTargetEditor({ target, onChange }: { target: UrlTarget; onChange: (p: Partial<UrlTarget>) => void }) {
+function UrlTargetEditor({ target, lang, onChange }: { target: UrlTarget; lang: Lang; onChange: (p: Partial<UrlTarget>) => void }) {
   return (
     <div className="target-fields">
       <div className="form-group">
-        <label>Label (optional)</label>
+        <label>{t(lang, "label_optional")}</label>
         <input type="text" value={target.label ?? ""} onChange={(e) => onChange({ label: e.target.value })} placeholder="GitHub, Notion..." />
       </div>
       <div className="form-group">
-        <label>URL</label>
+        <label>{t(lang, "url_label")}</label>
         <input type="url" value={target.value} onChange={(e) => onChange({ value: e.target.value })} placeholder="https://..." />
       </div>
     </div>
   );
 }
 
-function DirectoryTargetEditor({ target, onChange }: { target: DirectoryTarget; onChange: (p: Partial<DirectoryTarget>) => void }) {
+function DirectoryTargetEditor({ target, lang, onChange }: { target: DirectoryTarget; lang: Lang; onChange: (p: Partial<DirectoryTarget>) => void }) {
   async function browse(os: "macos" | "windows") {
     try {
       const dir = await selectDirectory();
@@ -475,28 +501,28 @@ function DirectoryTargetEditor({ target, onChange }: { target: DirectoryTarget; 
   return (
     <div className="target-fields">
       <div className="form-group">
-        <label>Label (optional)</label>
+        <label>{t(lang, "label_optional")}</label>
         <input type="text" value={target.label ?? ""} onChange={(e) => onChange({ label: e.target.value })} placeholder="My Projects..." />
       </div>
       <div className="form-group">
-        <label>macOS Path</label>
+        <label>{t(lang, "macos_path")}</label>
         <div className="path-row">
           <input type="text" value={target.path.macos ?? ""} onChange={(e) => onChange({ path: { ...target.path, macos: e.target.value } })} placeholder="~/Projects/myapp" />
-          <button className="browse-btn" onClick={() => browse("macos")}>Browse</button>
+          <button className="browse-btn" onClick={() => browse("macos")}>{t(lang, "browse")}</button>
         </div>
       </div>
       <div className="form-group">
-        <label>Windows Path</label>
+        <label>{t(lang, "windows_path")}</label>
         <div className="path-row">
           <input type="text" value={target.path.windows ?? ""} onChange={(e) => onChange({ path: { ...target.path, windows: e.target.value } })} placeholder="%USERPROFILE%\Projects\myapp" />
-          <button className="browse-btn" onClick={() => browse("windows")}>Browse</button>
+          <button className="browse-btn" onClick={() => browse("windows")}>{t(lang, "browse")}</button>
         </div>
       </div>
     </div>
   );
 }
 
-function AppTargetEditor({ target, onChange }: { target: ApplicationTarget; onChange: (p: Partial<ApplicationTarget>) => void }) {
+function AppTargetEditor({ target, lang, onChange }: { target: ApplicationTarget; lang: Lang; onChange: (p: Partial<ApplicationTarget>) => void }) {
   async function browse(os: "macos" | "windows") {
     try {
       const file = await selectFile();
@@ -506,25 +532,25 @@ function AppTargetEditor({ target, onChange }: { target: ApplicationTarget; onCh
   return (
     <div className="target-fields">
       <div className="form-group">
-        <label>Application Name</label>
+        <label>{t(lang, "app_name_label")}</label>
         <input type="text" value={target.name} onChange={(e) => onChange({ name: e.target.value })} placeholder="VSCode, Spotify..." />
       </div>
       <div className="form-group">
-        <label>macOS Path (.app)</label>
+        <label>{t(lang, "macos_path_app")}</label>
         <div className="path-row">
           <input type="text" value={target.path.macos ?? ""} onChange={(e) => onChange({ path: { ...target.path, macos: e.target.value } })} placeholder="/Applications/Visual Studio Code.app" />
-          <button className="browse-btn" onClick={() => browse("macos")}>Browse</button>
+          <button className="browse-btn" onClick={() => browse("macos")}>{t(lang, "browse")}</button>
         </div>
       </div>
       <div className="form-group">
-        <label>Windows Path (.exe)</label>
+        <label>{t(lang, "windows_path_exe")}</label>
         <div className="path-row">
           <input type="text" value={target.path.windows ?? ""} onChange={(e) => onChange({ path: { ...target.path, windows: e.target.value } })} placeholder="C:\...\Code.exe" />
-          <button className="browse-btn" onClick={() => browse("windows")}>Browse</button>
+          <button className="browse-btn" onClick={() => browse("windows")}>{t(lang, "browse")}</button>
         </div>
       </div>
       <div className="form-group">
-        <label>Launch Arguments (optional)</label>
+        <label>{t(lang, "launch_args")}</label>
         <input type="text" value={(target.args ?? []).join(" ")} onChange={(e) => onChange({ args: e.target.value ? e.target.value.split(" ") : [] })} placeholder="--new-window --verbose" />
       </div>
     </div>

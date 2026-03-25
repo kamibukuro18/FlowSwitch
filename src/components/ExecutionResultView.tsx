@@ -1,5 +1,6 @@
 import { useAppStore } from "../store/appStore";
 import { ExecutionResult, Target } from "../types";
+import { t, Lang } from "../i18n";
 import "./ExecutionResultView.css";
 
 type Props = {
@@ -21,6 +22,7 @@ function targetDescription(target: Target): string {
 
 export function ExecutionResultView({ store }: Props) {
   const { state, navigateTo } = store;
+  const lang = (state.settings.language ?? "en") as Lang;
   const result = state.lastExecutionResult;
 
   if (!result) {
@@ -36,16 +38,16 @@ export function ExecutionResultView({ store }: Props) {
     <div className="execution-view">
       <div className="execution-header">
         <button className="back-btn" onClick={() => navigateTo("modes")}>
-          ← Back
+          {t(lang, "back")}
         </button>
         <div className="execution-title">
           <h2>
-            {mode?.icon ?? "⚡"} {mode?.name ?? result.modeId} — Launched
+            {mode?.icon ?? "⚡"} {mode?.name ?? result.modeId} {t(lang, "launched")}
           </h2>
           <div className="execution-summary">
-            <span className="summary-success">✓ {successCount} succeeded</span>
+            <span className="summary-success">{t(lang, "succeeded", successCount)}</span>
             {failCount > 0 && (
-              <span className="summary-fail">✕ {failCount} skipped</span>
+              <span className="summary-fail">{t(lang, "skipped", failCount)}</span>
             )}
           </div>
         </div>
@@ -59,7 +61,7 @@ export function ExecutionResultView({ store }: Props) {
 
       <div className="execution-footer">
         <button className="btn-primary" onClick={() => navigateTo("modes")}>
-          Done
+          {t(lang, "done")}
         </button>
       </div>
     </div>

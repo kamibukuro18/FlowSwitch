@@ -42,6 +42,8 @@ export type Mode = {
   keepAliveApps?: string[];
   exitAction?: ExitAction;
   closeOthersOnLaunch?: boolean;
+  closeAppsOnLaunch?: boolean;
+  closeDirectoriesOnLaunch?: boolean;
   targets: Target[];
 };
 

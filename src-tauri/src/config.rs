@@ -63,6 +63,10 @@ pub struct Mode {
     pub exit_action: ExitAction,
     #[serde(default)]
     pub close_others_on_launch: bool,
+    #[serde(default)]
+    pub close_apps_on_launch: bool,
+    #[serde(default)]
+    pub close_directories_on_launch: bool,
     pub targets: Vec<Target>,
 }
 

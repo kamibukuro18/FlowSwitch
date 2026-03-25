@@ -1,4 +1,5 @@
 import { useAppStore } from "../store/appStore";
+import { t, Lang } from "../i18n";
 import "./Sidebar.css";
 
 type Props = {
@@ -7,6 +8,7 @@ type Props = {
 
 export function Sidebar({ store }: Props) {
   const { state, navigateTo, startEditingMode } = store;
+  const lang = (state.settings.language ?? "en") as Lang;
 
   return (
     <aside className="sidebar">
@@ -21,7 +23,7 @@ export function Sidebar({ store }: Props) {
           onClick={() => navigateTo("modes")}
         >
           <span className="nav-icon">⊞</span>
-          <span className="nav-label">Modes</span>
+          <span className="nav-label">{t(lang, "nav_modes")}</span>
         </button>
 
         <button
@@ -37,7 +39,7 @@ export function Sidebar({ store }: Props) {
           }
         >
           <span className="nav-icon">+</span>
-          <span className="nav-label">New Mode</span>
+          <span className="nav-label">{t(lang, "nav_new_mode")}</span>
         </button>
       </nav>
 
@@ -47,7 +49,7 @@ export function Sidebar({ store }: Props) {
           onClick={() => navigateTo("settings")}
         >
           <span className="nav-icon">⚙</span>
-          <span className="nav-label">Settings</span>
+          <span className="nav-label">{t(lang, "nav_settings")}</span>
         </button>
       </div>
     </aside>

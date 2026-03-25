@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAppStore } from "../store/appStore";
 import { loadConfig, saveSettings, getDefaultConfigPath, saveConfig } from "../hooks/useTauri";
+import { t, Lang } from "../i18n";
 import "./SettingsView.css";
 
 type Props = {
@@ -9,8 +10,15 @@ type Props = {
 
 export function SettingsView({ store }: Props) {
   const { state, setConfig, setSettings, setError, setLoading } = store;
+  const lang = (state.settings.language ?? "en") as Lang;
   const [configPath, setConfigPath] = useState(state.settings.configFilePath ?? "");
   const [saved, setSaved] = useState(false);
+
+  async function handleAppearanceChange(patch: { theme?: "light" | "dark" | "system"; language?: "en" | "ja" }) {
+    const next = { ...state.settings, ...patch };
+    setSettings(patch);
+    await saveSettings(next).catch(() => {});
+  }
 
   async function handleLoadConfig() {
     if (!configPath.trim()) {
@@ -60,15 +68,13 @@ export function SettingsView({ store }: Props) {
   return (
     <div className="settings-view">
       <div className="view-header">
-        <h1>Settings</h1>
+        <h1>{t(lang, "settings")}</h1>
       </div>
 
       <div className="settings-content">
         <section className="settings-section">
-          <h3 className="settings-section-title">Config File</h3>
-          <p className="settings-section-desc">
-            Specify where your modes configuration file is stored. Use a synced folder (iCloud, Dropbox, etc.) to share between devices.
-          </p>
+          <h3 className="settings-section-title">{t(lang, "config_file")}</h3>
+          <p className="settings-section-desc">{t(lang, "config_file_desc")}</p>
 
           <div className="config-path-row">
             <input
@@ -78,39 +84,39 @@ export function SettingsView({ store }: Props) {
               placeholder="/path/to/flowswitch.json"
             />
             <button className="btn-outline" onClick={handleUseDefault}>
-              Default
+              {t(lang, "default_btn")}
             </button>
           </div>
 
           <div className="config-actions">
             <button className="btn-primary" onClick={handleLoadConfig}>
-              Load Config
+              {t(lang, "load_config")}
             </button>
             <button className="btn-secondary" onClick={handleSaveConfig} disabled={!state.config}>
-              Save Current Config
+              {t(lang, "save_config_btn")}
             </button>
-            {saved && <span className="saved-indicator">✓ Saved</span>}
+            {saved && <span className="saved-indicator">{t(lang, "saved_indicator")}</span>}
           </div>
         </section>
 
         <section className="settings-section">
-          <h3 className="settings-section-title">Appearance</h3>
+          <h3 className="settings-section-title">{t(lang, "appearance")}</h3>
           <div className="settings-row">
-            <label>Theme</label>
+            <label>{t(lang, "theme_label")}</label>
             <select
               value={state.settings.theme ?? "dark"}
-              onChange={(e) => setSettings({ theme: e.target.value as "light" | "dark" | "system" })}
+              onChange={(e) => handleAppearanceChange({ theme: e.target.value as "light" | "dark" | "system" })}
             >
-              <option value="dark">Dark</option>
-              <option value="light">Light</option>
-              <option value="system">System</option>
+              <option value="dark">{t(lang, "theme_dark")}</option>
+              <option value="light">{t(lang, "theme_light")}</option>
+              <option value="system">{t(lang, "theme_system")}</option>
             </select>
           </div>
           <div className="settings-row">
-            <label>Language</label>
+            <label>{t(lang, "language_label")}</label>
             <select
               value={state.settings.language ?? "en"}
-              onChange={(e) => setSettings({ language: e.target.value as "en" | "ja" })}
+              onChange={(e) => handleAppearanceChange({ language: e.target.value as "en" | "ja" })}
             >
               <option value="en">English</option>
               <option value="ja">日本語</option>
@@ -119,10 +125,8 @@ export function SettingsView({ store }: Props) {
         </section>
 
         <section className="settings-section">
-          <h3 className="settings-section-title">Config File Format</h3>
-          <p className="settings-section-desc">
-            The config file is a JSON file with the following structure. You can edit it directly or use this app to manage modes.
-          </p>
+          <h3 className="settings-section-title">{t(lang, "config_format")}</h3>
+          <p className="settings-section-desc">{t(lang, "config_format_desc")}</p>
           <pre className="config-example">{JSON.stringify({
             version: 1,
             modes: [{

@@ -14,6 +14,12 @@ pub fn execute_mode(mode: &Mode) -> ModeExecutionResult {
     if mode.close_others_on_launch {
         close_browsers();
     }
+    if mode.close_apps_on_launch {
+        close_apps();
+    }
+    if mode.close_directories_on_launch {
+        close_directories();
+    }
 
     let mut results = Vec::new();
     for (index, target) in mode.targets.iter().enumerate() {
@@ -39,6 +45,62 @@ fn close_browsers() {
         for app in &["Google Chrome", "Microsoft Edge", "Firefox", "Opera", "Brave Browser", "Safari"] {
             let _ = Command::new("pkill").args(["-x", app]).output();
         }
+    }
+}
+
+fn close_apps() {
+    #[cfg(target_os = "windows")]
+    {
+        // Close all apps with a visible main window, excluding system processes.
+        let script = r#"
+            $excluded = @('explorer','SearchHost','StartMenuExperienceHost',
+                          'ShellExperienceHost','SystemSettings','TextInputHost',
+                          'LockApp','dwm','winlogon','csrss','svchost','conhost',
+                          'taskhostw','sihost','fontdrvhost','WUDFHost')
+            Get-Process | Where-Object {
+                $_.MainWindowTitle -ne '' -and
+                $_.Name -notin $excluded -and
+                $_.Name -notlike '*FlowSwitch*'
+            } | ForEach-Object {
+                $_.CloseMainWindow() | Out-Null
+            }
+        "#;
+        let _ = Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command", script])
+            .output();
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let script = r#"
+            tell application "System Events"
+                set appList to name of every process whose visible is true
+            end tell
+            repeat with appName in appList
+                if appName is not "FlowSwitch" and appName is not "Finder" then
+                    try
+                        tell application appName to quit
+                    end try
+                end if
+            end repeat
+        "#;
+        let _ = Command::new("osascript").args(["-e", script]).output();
+    }
+}
+
+fn close_directories() {
+    #[cfg(target_os = "windows")]
+    {
+        // Close Explorer folder windows without killing the shell.
+        let script = "(New-Object -comobject shell.application).windows() | ForEach-Object { $_.quit() }";
+        let _ = Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command", script])
+            .output();
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = Command::new("osascript")
+            .args(["-e", "tell application \"Finder\" to close every window"])
+            .output();
     }
 }
 
