@@ -70,3 +70,7 @@ export type BookmarkItem = {
 export async function getBrowserBookmarks(): Promise<BookmarkItem[]> {
   return invoke<BookmarkItem[]>("get_browser_bookmarks");
 }
+
+export async function updateTrayMenu(config: Config): Promise<void> {
+  return invoke<void>("update_tray_menu", { config });
+}

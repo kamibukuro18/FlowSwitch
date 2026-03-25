@@ -218,6 +218,24 @@ fn collect_bookmarks(node: &serde_json::Value, browser: &str, folder: &str, out:
     }
 }
 
+/// Called from the frontend whenever the config changes.
+/// Updates the cached config in AppState and rebuilds the tray context menu.
+#[tauri::command]
+pub fn update_tray_menu(app: AppHandle, config: Config) -> Result<(), String> {
+    // Cache config for tray-triggered executions
+    {
+        let state = app.state::<crate::AppState>();
+        *state.config.lock().unwrap() = Some(config.clone());
+    }
+    // Rebuild and apply the tray menu
+    let menu = crate::build_tray_menu(&app, &config.modes)
+        .map_err(|e| e.to_string())?;
+    if let Some(tray) = app.tray_by_id("main") {
+        tray.set_menu(Some(menu)).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 fn expand_home(path: &str) -> String {
     if path.starts_with('~') {
         if let Some(home) = dirs::home_dir() {

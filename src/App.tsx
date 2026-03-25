@@ -1,6 +1,8 @@
 import { useEffect } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "./store/appStore";
-import { loadSettings, loadConfig, getDefaultConfigPath } from "./hooks/useTauri";
+import { loadSettings, loadConfig, getDefaultConfigPath, updateTrayMenu } from "./hooks/useTauri";
+import { ModeExecutionResult } from "./types";
 import { ModeListView } from "./components/ModeListView";
 import { ModeEditorView } from "./components/ModeEditorView";
 import { SettingsView } from "./components/SettingsView";
@@ -11,13 +13,28 @@ import "./App.css";
 
 function App() {
   const store = useAppStore();
-  const { state, setConfig, setSettings, setError } = store;
+  const { state, setConfig, setSettings, setError, setLastExecutionResult } = store;
 
   useEffect(() => {
     const isDark = state.settings.theme === "dark" ||
       (state.settings.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
   }, [state.settings.theme]);
+
+  // Sync tray menu whenever config changes
+  useEffect(() => {
+    if (state.config) {
+      updateTrayMenu(state.config).catch(() => {});
+    }
+  }, [state.config]);
+
+  // Receive mode executions triggered from the tray (silent background launch)
+  useEffect(() => {
+    const unlisten = listen<ModeExecutionResult>("tray-mode-executed", (ev) => {
+      setLastExecutionResult(ev.payload);
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
 
   useEffect(() => {
     async function init() {
