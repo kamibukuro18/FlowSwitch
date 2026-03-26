@@ -1,0 +1,222 @@
+.wizard-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+}
+
+.wizard-card {
+  position: relative;
+  width: 480px;
+  max-width: 90vw;
+  padding: 48px 40px 40px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Language toggle */
+.wizard-lang-toggle {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 2px;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.wizard-lang-toggle button {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  background: transparent;
+  transition: all 0.15s;
+}
+
+.wizard-lang-toggle button.active {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+.wizard-lang-toggle button:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+/* Step layout */
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.wizard-hero {
+  font-size: 56px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.wizard-step h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.wizard-step h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.wizard-desc {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: pre-line;
+  margin: 4px 0 16px;
+}
+
+.wizard-step-indicator {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+/* Input row (config path) */
+.wizard-input-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.wizard-input-row input {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.wizard-input-row input:focus {
+  border-color: var(--accent-primary);
+}
+
+/* Form (mode creation) */
+.wizard-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.wizard-mode-name {
+  padding: 10px 12px;
+  font-size: 13px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.wizard-mode-name:focus {
+  border-color: var(--accent-primary);
+}
+
+.wizard-urls {
+  padding: 10px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  color: var(--text-primary);
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+
+.wizard-urls:focus {
+  border-color: var(--accent-primary);
+}
+
+/* Navigation */
+.wizard-nav {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+  margin-top: 16px;
+}
+
+.wizard-nav button:first-child {
+  margin-right: auto;
+}
+
+/* Buttons */
+.wizard-btn {
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.wizard-btn.primary {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+.wizard-btn.primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.wizard-btn.primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.wizard-btn.outline {
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+}
+
+.wizard-btn.outline:hover {
+  background: var(--bg-tertiary);
+}
+
+.wizard-btn.ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.wizard-btn.ghost:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.wizard-btn.ghost:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

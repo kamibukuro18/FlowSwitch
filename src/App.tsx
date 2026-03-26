@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "./store/appStore";
 import { loadSettings, loadConfig, getDefaultConfigPath, updateTrayMenu } from "./hooks/useTauri";
@@ -7,6 +7,7 @@ import { ModeListView } from "./components/ModeListView";
 import { ModeEditorView } from "./components/ModeEditorView";
 import { SettingsView } from "./components/SettingsView";
 import { ExecutionResultView } from "./components/ExecutionResultView";
+import { WelcomeWizard } from "./components/WelcomeWizard";
 import { Sidebar } from "./components/Sidebar";
 import { SAMPLE_CONFIG } from "./data/sampleConfig";
 import "./App.css";
@@ -14,6 +15,7 @@ import "./App.css";
 function App() {
   const store = useAppStore();
   const { state, setConfig, setSettings, setError, setLastExecutionResult } = store;
+  const [showWizard, setShowWizard] = useState<boolean | null>(null); // null = loading
 
   useEffect(() => {
     const isDark = state.settings.theme === "dark" ||
@@ -42,18 +44,23 @@ function App() {
         const settings = await loadSettings();
         setSettings(settings);
 
-        if (settings.configFilePath) {
-          const config = await loadConfig(settings.configFilePath);
-          setConfig(config);
+        if (settings.onboardingComplete) {
+          setShowWizard(false);
+          if (settings.configFilePath) {
+            const config = await loadConfig(settings.configFilePath);
+            setConfig(config);
+          } else {
+            const defaultPath = await getDefaultConfigPath();
+            setSettings({ configFilePath: defaultPath });
+            setConfig(SAMPLE_CONFIG);
+          }
         } else {
-          // Show sample config on first launch
-          const defaultPath = await getDefaultConfigPath();
-          setSettings({ configFilePath: defaultPath });
-          setConfig(SAMPLE_CONFIG);
+          // First launch — show onboarding wizard
+          setShowWizard(true);
         }
       } catch {
-        // First launch or settings not found - use sample config
-        setConfig(SAMPLE_CONFIG);
+        // First launch or settings not found — show wizard
+        setShowWizard(true);
       }
     }
     init();
@@ -73,6 +80,29 @@ function App() {
         return <ModeListView store={store} />;
     }
   };
+
+  // Show nothing while loading settings
+  if (showWizard === null) return null;
+
+  if (showWizard) {
+    return (
+      <WelcomeWizard
+        store={store}
+        onFinish={async () => {
+          // Reload config from the path the wizard just saved
+          if (state.settings.configFilePath) {
+            try {
+              const config = await loadConfig(state.settings.configFilePath);
+              setConfig(config);
+            } catch {
+              // Config was just created by the wizard, so it should load fine
+            }
+          }
+          setShowWizard(false);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="app-layout">

@@ -84,6 +84,8 @@ pub struct AppSettings {
     pub config_file_path: Option<String>,
     pub theme: Option<String>,
     pub language: Option<String>,
+    #[serde(default)]
+    pub onboarding_complete: bool,
 }
 
 impl Default for AppSettings {
@@ -92,6 +94,7 @@ impl Default for AppSettings {
             config_file_path: None,
             theme: Some("dark".to_string()),
             language: Some("en".to_string()),
+            onboarding_complete: false,
         }
     }
 }

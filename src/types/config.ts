@@ -69,4 +69,5 @@ export type AppSettings = {
   configFilePath?: string;
   theme?: "light" | "dark" | "system";
   language?: "en" | "ja";
+  onboardingComplete?: boolean;
 };

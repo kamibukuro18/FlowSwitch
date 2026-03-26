@@ -85,6 +85,23 @@ const dict = {
   theme_system:      { en: "System",                  ja: "システム" },
   config_format:     { en: "Config File Format",      ja: "設定ファイルフォーマット" },
   config_format_desc:{ en: "The config file is a JSON file with the following structure. You can edit it directly or use this app to manage modes.", ja: "設定ファイルは以下の構造を持つ JSON ファイルです。直接編集するか、このアプリでモードを管理できます。" },
+  // Onboarding wizard
+  welcome_title:       { en: "Welcome to FlowSwitch",    ja: "FlowSwitch へようこそ" },
+  welcome_desc:        { en: "Switch your work context in one click.\nURLs, apps, and folders — organized into modes\nthat launch together instantly.", ja: "ワンクリックで作業コンテキストを切り替え。\nURL・アプリ・フォルダをモードにまとめて\n一瞬で起動できます。" },
+  get_started:         { en: "Get Started",               ja: "はじめる" },
+  step_of:             { en: "Step %d of %d",             ja: "ステップ %d / %d" },
+  setup_path_title:    { en: "Config File Location",      ja: "設定ファイルの保存先" },
+  setup_path_desc:     { en: "FlowSwitch saves your modes to a JSON file.\nUse a synced folder (iCloud, Dropbox) to share between devices.", ja: "FlowSwitch はモード設定を JSON ファイルに保存します。\niCloud や Dropbox の同期フォルダを使えば\nデバイス間で共有できます。" },
+  next:                { en: "Next",                      ja: "次へ" },
+  first_mode_title:    { en: "Create Your First Mode",   ja: "最初のモードを作成" },
+  first_mode_desc:     { en: "A mode is a set of URLs, apps, and folders that launch together.\nGive it a name and paste some URLs to get started.", ja: "モードは、まとめて起動する URL・アプリ・フォルダのセットです。\n名前をつけて、URL を貼り付けてみましょう。" },
+  mode_name_wizard_ph: { en: "e.g. Work, Study, Side Project...", ja: "例: 仕事, 勉強, 副業..." },
+  urls_wizard_ph:      { en: "Paste URLs (one per line)\nhttps://github.com\nhttps://notion.so", ja: "URL を貼り付け（1行1URL）\nhttps://github.com\nhttps://notion.so" },
+  skip:                { en: "Skip",                      ja: "スキップ" },
+  create_and_finish:   { en: "Create & Start",            ja: "作成して開始" },
+  ready_title:         { en: "You're all set!",           ja: "準備完了！" },
+  ready_desc:          { en: "Drag & drop URLs, apps, or folders onto a mode to add targets.\nRight-click the tray icon for quick launch.", ja: "URL・アプリ・フォルダをドラッグ＆ドロップで追加。\nトレイアイコンの右クリックで素早く起動できます。" },
+  start_app:           { en: "Start Using FlowSwitch",    ja: "FlowSwitch を使い始める" },
 } satisfies Record<string, Record<Lang, string>>;
 
 export type TKey = keyof typeof dict;
