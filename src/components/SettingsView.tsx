@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAppStore } from "../store/appStore";
-import { loadConfig, saveSettings, getDefaultConfigPath, saveConfig } from "../hooks/useTauri";
+import { loadConfig, saveSettings, getDefaultConfigPath } from "../hooks/useTauri";
 import { t, Lang } from "../i18n";
 import "./SettingsView.css";
 
@@ -40,21 +40,6 @@ export function SettingsView({ store }: Props) {
     }
   }
 
-  async function handleSaveConfig() {
-    if (!state.config || !configPath.trim()) return;
-    setLoading(true);
-    try {
-      await saveConfig(configPath.trim(), state.config);
-      setSettings({ configFilePath: configPath.trim() });
-      await saveSettings({ ...state.settings, configFilePath: configPath.trim() });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch (err) {
-      setError(`Failed to save config: ${err}`);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleUseDefault() {
     try {
@@ -92,11 +77,9 @@ export function SettingsView({ store }: Props) {
             <button className="btn-primary" onClick={handleLoadConfig}>
               {t(lang, "load_config")}
             </button>
-            <button className="btn-secondary" onClick={handleSaveConfig} disabled={!state.config}>
-              {t(lang, "save_config_btn")}
-            </button>
             {saved && <span className="saved-indicator">{t(lang, "saved_indicator")}</span>}
           </div>
+          <p className="settings-auto-save-note">{t(lang, "auto_save_note")}</p>
         </section>
 
         <section className="settings-section">

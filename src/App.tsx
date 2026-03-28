@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "./store/appStore";
-import { loadSettings, loadConfig, getDefaultConfigPath, updateTrayMenu } from "./hooks/useTauri";
+import { loadSettings, loadConfig, getDefaultConfigPath, saveConfig, updateTrayMenu } from "./hooks/useTauri";
 import { ModeExecutionResult } from "./types";
 import { ModeListView } from "./components/ModeListView";
 import { ModeEditorView } from "./components/ModeEditorView";
@@ -16,6 +16,7 @@ function App() {
   const store = useAppStore();
   const { state, setConfig, setSettings, setError, setLastExecutionResult } = store;
   const [showWizard, setShowWizard] = useState<boolean | null>(null); // null = loading
+  const configLoadedRef = useRef(false); // skip auto-save on initial load
 
   useEffect(() => {
     const isDark = state.settings.theme === "dark" ||
@@ -28,6 +29,18 @@ function App() {
     if (state.config) {
       updateTrayMenu(state.config).catch(() => {});
     }
+  }, [state.config]);
+
+  // Auto-save config to disk whenever it changes (skip initial load)
+  useEffect(() => {
+    if (!state.config || !state.settings.configFilePath) return;
+    if (!configLoadedRef.current) {
+      configLoadedRef.current = true;
+      return;
+    }
+    saveConfig(state.settings.configFilePath, state.config).catch((err) => {
+      setError(`Auto-save failed: ${err}`);
+    });
   }, [state.config]);
 
   // Receive mode executions triggered from the tray (silent background launch)

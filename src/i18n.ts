@@ -83,6 +83,7 @@ const dict = {
   theme_dark:        { en: "Dark",                    ja: "ダーク" },
   theme_light:       { en: "Light",                   ja: "ライト" },
   theme_system:      { en: "System",                  ja: "システム" },
+  auto_save_note:    { en: "Changes are saved automatically.",  ja: "変更は自動的に保存されます。" },
   config_format:     { en: "Config File Format",      ja: "設定ファイルフォーマット" },
   config_format_desc:{ en: "The config file is a JSON file with the following structure. You can edit it directly or use this app to manage modes.", ja: "設定ファイルは以下の構造を持つ JSON ファイルです。直接編集するか、このアプリでモードを管理できます。" },
   // Onboarding wizard
