@@ -206,6 +206,30 @@ export function ModeEditorView({ store }: Props) {
     setEditingTargetIndex(null);
   }
 
+  function closeAddPanel() {
+    if (activeTab === "paste") {
+      setPasteText("");
+    }
+    if (activeTab === "bookmarks") {
+      setBookmarkSearch("");
+    }
+    setActiveTab(null);
+  }
+
+  function handleEscapeClose() {
+    if (editingTargetIndex !== null) {
+      closeTargetEditor();
+      return;
+    }
+    if (activeTab !== null) {
+      closeAddPanel();
+      return;
+    }
+    if (showAddChooser) {
+      setShowAddChooser(false);
+    }
+  }
+
   function addTargetsAndSelect(targets: Target[]) {
     if (targets.length === 0) return;
     const nextIndex = mode.targets.length;
@@ -324,6 +348,18 @@ export function ModeEditorView({ store }: Props) {
       cancelAnimationFrame(innerFrame);
     };
   }, [selectedTargetIndex, mode.targets.length]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      if (editingTargetIndex === null && activeTab === null && !showAddChooser) return;
+      event.preventDefault();
+      handleEscapeClose();
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeTab, editingTargetIndex, showAddChooser]);
 
   useEffect(() => {
     function handlePointerMove(event: PointerEvent) {
@@ -458,9 +494,16 @@ export function ModeEditorView({ store }: Props) {
   }
 
   function handleAddBookmarks() {
-    addUrlTargets(Array.from(selectedUrls));
+    const newTargets: Target[] = bookmarks
+      .filter((bookmark) => selectedUrls.has(bookmark.url))
+      .map((bookmark) => ({
+        type: "url" as const,
+        value: bookmark.url,
+        label: bookmark.name.trim(),
+      }));
+    addTargetsAndSelect(newTargets);
     setSelectedUrls(new Set());
-    setActiveTab(null);
+    closeAddPanel();
   }
 
   const filteredBookmarks = bookmarks.filter((b) => {
@@ -675,7 +718,7 @@ export function ModeEditorView({ store }: Props) {
             />
             <div className="tab-panel-footer">
               <button className="btn-save" onClick={handlePasteAdd} disabled={!pasteText.trim()}>{t(lang, "add")}</button>
-              <button className="back-btn" onClick={() => { setActiveTab(null); setPasteText(""); }}>{t(lang, "cancel")}</button>
+              <button className="back-btn" onClick={closeAddPanel}>{t(lang, "cancel")}</button>
             </div>
           </div>
         </div>
@@ -730,7 +773,7 @@ export function ModeEditorView({ store }: Props) {
               }}>
                 {filteredBookmarks.every((b) => selectedUrls.has(b.url)) ? t(lang, "deselect_all") : t(lang, "select_all")}
               </button>
-              <button className="back-btn" onClick={() => { setActiveTab(null); setBookmarkSearch(""); }}>{t(lang, "close")}</button>
+              <button className="back-btn" onClick={closeAddPanel}>{t(lang, "close")}</button>
             </div>
           </div>
         </div>
@@ -765,7 +808,7 @@ export function ModeEditorView({ store }: Props) {
             </div>
             <div className="tab-panel-footer">
               <button className="btn-save" onClick={handleAddApp} disabled={!newApp.name.trim()}>{t(lang, "add")}</button>
-              <button className="back-btn" onClick={() => setActiveTab(null)}>{t(lang, "cancel")}</button>
+              <button className="back-btn" onClick={closeAddPanel}>{t(lang, "cancel")}</button>
             </div>
           </div>
         </div>
@@ -796,7 +839,7 @@ export function ModeEditorView({ store }: Props) {
             </div>
             <div className="tab-panel-footer">
               <button className="btn-save" onClick={handleAddDir} disabled={!newDir.path.macos && !newDir.path.windows}>{t(lang, "add")}</button>
-              <button className="back-btn" onClick={() => setActiveTab(null)}>{t(lang, "cancel")}</button>
+              <button className="back-btn" onClick={closeAddPanel}>{t(lang, "cancel")}</button>
             </div>
           </div>
         </div>
@@ -852,7 +895,7 @@ export function ModeEditorView({ store }: Props) {
             </div>
             <div className="tab-panel-footer">
               <button className="btn-save" onClick={handleAddFile} disabled={!newFile.path.macos && !newFile.path.windows}>{t(lang, "add")}</button>
-              <button className="back-btn" onClick={() => setActiveTab(null)}>{t(lang, "cancel")}</button>
+              <button className="back-btn" onClick={closeAddPanel}>{t(lang, "cancel")}</button>
             </div>
           </div>
         </div>
@@ -917,7 +960,7 @@ export function ModeEditorView({ store }: Props) {
             </div>
             <div className="tab-panel-footer">
               <button className="btn-save" onClick={handleAddConsole}>{t(lang, "add")}</button>
-              <button className="back-btn" onClick={() => setActiveTab(null)}>{t(lang, "cancel")}</button>
+              <button className="back-btn" onClick={closeAddPanel}>{t(lang, "cancel")}</button>
             </div>
           </div>
         </div>
