@@ -13,6 +13,17 @@ fn settings_path(app: &AppHandle) -> PathBuf {
         .join("settings.json")
 }
 
+pub(crate) fn load_settings_from_disk(app: &AppHandle) -> AppSettings {
+    let path = settings_path(app);
+    if !path.exists() {
+        return AppSettings::default();
+    }
+    fs::read_to_string(&path)
+        .ok()
+        .and_then(|content| serde_json::from_str::<AppSettings>(&content).ok())
+        .unwrap_or_default()
+}
+
 #[tauri::command]
 pub fn load_config(file_path: String) -> Result<Config, String> {
     let path = expand_home(&file_path);
@@ -49,14 +60,7 @@ pub fn execute_mode(mode_id: String, config: Config) -> Result<ModeExecutionResu
 
 #[tauri::command]
 pub fn load_settings(app: AppHandle) -> Result<AppSettings, String> {
-    let path = settings_path(&app);
-    if !path.exists() {
-        return Ok(AppSettings::default());
-    }
-    let content = fs::read_to_string(&path)
-        .map_err(|e| format!("Cannot read settings: {}", e))?;
-    serde_json::from_str::<AppSettings>(&content)
-        .map_err(|e| format!("Invalid settings JSON: {}", e))
+    Ok(load_settings_from_disk(&app))
 }
 
 #[tauri::command]
@@ -69,7 +73,12 @@ pub fn save_settings(app: AppHandle, settings: AppSettings) -> Result<(), String
     let content = serde_json::to_string_pretty(&settings)
         .map_err(|e| format!("Failed to serialize settings: {}", e))?;
     fs::write(&path, content)
-        .map_err(|e| format!("Failed to write settings: {}", e))
+        .map_err(|e| format!("Failed to write settings: {}", e))?;
+
+    let state = app.state::<crate::AppState>();
+    *state.settings.lock().unwrap() = settings;
+
+    Ok(())
 }
 
 #[tauri::command]

@@ -14,7 +14,13 @@ export function SettingsView({ store }: Props) {
   const [configPath, setConfigPath] = useState(state.settings.configFilePath ?? "");
   const [saved, setSaved] = useState(false);
 
-  async function handleAppearanceChange(patch: { theme?: "light" | "dark" | "system"; language?: "en" | "ja" }) {
+  async function handleAppearanceChange(
+    patch: {
+      theme?: "light" | "dark" | "system";
+      language?: "en" | "ja";
+      keepRunningInTray?: boolean;
+    }
+  ) {
     const next = { ...state.settings, ...patch };
     setSettings(patch);
     await saveSettings(next).catch(() => {});
@@ -105,6 +111,15 @@ export function SettingsView({ store }: Props) {
               <option value="ja">日本語</option>
             </select>
           </div>
+          <div className="settings-row">
+            <label>{t(lang, "tray_residency_label")}</label>
+            <input
+              type="checkbox"
+              checked={state.settings.keepRunningInTray ?? true}
+              onChange={(e) => handleAppearanceChange({ keepRunningInTray: e.target.checked })}
+            />
+          </div>
+          <p className="settings-section-desc">{t(lang, "tray_residency_desc")}</p>
         </section>
 
         <section className="settings-section">

@@ -32,6 +32,18 @@ pub enum Target {
         args: Option<Vec<String>>,
         command: Option<OsCommand>,
     },
+    #[serde(rename = "file")]
+    File {
+        path: OsPath,
+        label: Option<String>,
+        args: Option<Vec<String>>,
+    },
+    #[serde(rename = "console")]
+    Console {
+        name: Option<String>,
+        command: Option<OsCommand>,
+        working_dir: Option<OsPath>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,8 +96,14 @@ pub struct AppSettings {
     pub config_file_path: Option<String>,
     pub theme: Option<String>,
     pub language: Option<String>,
+    #[serde(default = "default_keep_running_in_tray")]
+    pub keep_running_in_tray: bool,
     #[serde(default)]
     pub onboarding_complete: bool,
+}
+
+fn default_keep_running_in_tray() -> bool {
+    true
 }
 
 impl Default for AppSettings {
@@ -94,6 +112,7 @@ impl Default for AppSettings {
             config_file_path: None,
             theme: Some("dark".to_string()),
             language: Some("en".to_string()),
+            keep_running_in_tray: true,
             onboarding_complete: false,
         }
     }

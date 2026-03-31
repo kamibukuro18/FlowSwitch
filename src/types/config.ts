@@ -28,7 +28,26 @@ export type ApplicationTarget = {
   command?: OsCommand;
 };
 
-export type Target = UrlTarget | DirectoryTarget | ApplicationTarget;
+export type FileTarget = {
+  type: "file";
+  path: OsPath;
+  label?: string;
+  args?: string[];
+};
+
+export type ConsoleTarget = {
+  type: "console";
+  name?: string;
+  command?: OsCommand;
+  workingDir?: OsPath;
+};
+
+export type Target =
+  | UrlTarget
+  | DirectoryTarget
+  | ApplicationTarget
+  | FileTarget
+  | ConsoleTarget;
 
 export type ExitAction = "nothing" | "close" | "minimize";
 
@@ -69,5 +88,6 @@ export type AppSettings = {
   configFilePath?: string;
   theme?: "light" | "dark" | "system";
   language?: "en" | "ja";
+  keepRunningInTray?: boolean;
   onboardingComplete?: boolean;
 };

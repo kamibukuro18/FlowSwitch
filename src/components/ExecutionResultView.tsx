@@ -11,12 +11,20 @@ function targetDescription(target: Target): string {
   switch (target.type) {
     case "url":
       return target.value;
-    case "directory": {
-      const p = target.path.macos ?? target.path.windows ?? "(no path)";
-      return p;
-    }
+    case "directory":
+      return target.path.macos ?? target.path.windows ?? "(no path)";
     case "application":
       return target.name;
+    case "file":
+      return target.path.macos ?? target.path.windows ?? "(no path)";
+    case "console":
+      return (
+        target.command?.macos ??
+        target.command?.windows ??
+        target.workingDir?.macos ??
+        target.workingDir?.windows ??
+        "(console)"
+      );
   }
 }
 
@@ -42,7 +50,7 @@ export function ExecutionResultView({ store }: Props) {
         </button>
         <div className="execution-title">
           <h2>
-            {mode?.icon ?? "⚡"} {mode?.name ?? result.modeId} {t(lang, "launched")}
+            {mode?.icon ?? "FlowSwitch"} {mode?.name ?? result.modeId} {t(lang, "launched")}
           </h2>
           <div className="execution-summary">
             <span className="summary-success">{t(lang, "succeeded", successCount)}</span>
@@ -72,19 +80,33 @@ function ResultItem({ result }: { result: ExecutionResult }) {
   const target = result.target;
 
   function icon() {
-    if (!result.success) return "✕";
+    if (!result.success) return "X";
     switch (target.type) {
-      case "url": return "🔗";
-      case "directory": return "📁";
-      case "application": return "🖥";
+      case "url":
+        return "W";
+      case "directory":
+        return "D";
+      case "application":
+        return "A";
+      case "file":
+        return "F";
+      case "console":
+        return ">";
     }
   }
 
   function label() {
     switch (target.type) {
-      case "url": return (target as { type: "url"; value: string; label?: string }).label ?? target.value;
-      case "directory": return (target as { type: "directory"; path: { macos?: string; windows?: string }; label?: string }).label ?? targetDescription(target);
-      case "application": return target.name;
+      case "url":
+        return target.label ?? target.value;
+      case "directory":
+        return target.label ?? targetDescription(target);
+      case "application":
+        return target.name;
+      case "file":
+        return target.label ?? targetDescription(target);
+      case "console":
+        return target.name ?? targetDescription(target);
     }
   }
 

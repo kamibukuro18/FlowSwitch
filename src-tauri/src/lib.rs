@@ -14,6 +14,7 @@ use tauri::{
 
 pub(crate) struct AppState {
     pub config: std::sync::Mutex<Option<config::Config>>,
+    pub settings: std::sync::Mutex<config::AppSettings>,
 }
 
 // ── Tray menu builder ─────────────────────────────────────────────────────────
@@ -60,16 +61,20 @@ fn show_main_window(app: &tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let persisted_settings = commands::load_settings_from_disk;
     tauri::Builder::default()
-        .manage(AppState {
-            config: std::sync::Mutex::new(None),
-        })
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .setup(|app| {
+        .setup(move |app| {
+            let initial_settings = persisted_settings(app.handle());
+            app.manage(AppState {
+                config: std::sync::Mutex::new(None),
+                settings: std::sync::Mutex::new(initial_settings),
+            });
+
             #[cfg(debug_assertions)]
             {
                 let window = app.get_webview_window("main").unwrap();
@@ -106,7 +111,7 @@ pub fn run() {
                 .icon(app.default_window_icon().cloned().expect("no window icon"))
                 .tooltip("FlowSwitch")
                 .menu(&initial_menu)
-                .menu_on_left_click(false)
+                .show_menu_on_left_click(false)
                 .on_menu_event(|app: &tauri::AppHandle, event: tauri::menu::MenuEvent| {
                     match event.id().as_ref() {
                         "show" => show_main_window(app),
@@ -147,11 +152,19 @@ pub fn run() {
 
             let window = app.get_webview_window("main").unwrap();
             window.on_window_event({
+                let app = app.handle().clone();
                 let window = window.clone();
                 move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                        api.prevent_close();
-                        let _ = window.hide();
+                        let keep_running_in_tray = {
+                            let state = app.state::<AppState>();
+                            let keep_running = state.settings.lock().unwrap().keep_running_in_tray;
+                            keep_running
+                        };
+                        if keep_running_in_tray {
+                            api.prevent_close();
+                            let _ = window.hide();
+                        }
                     }
                 }
             });

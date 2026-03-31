@@ -1,4 +1,4 @@
-use crate::config::{ExecutionResult, Mode, ModeExecutionResult, Target};
+use crate::config::{ExecutionResult, Mode, ModeExecutionResult, OsCommand, OsPath, Target};
 use std::process::Command;
 
 #[cfg(target_os = "macos")]
@@ -107,44 +107,35 @@ fn close_directories() {
 fn execute_target(index: usize, target: &Target) -> ExecutionResult {
     let outcome = match target {
         Target::Url { value, .. } => open_url(value),
-        Target::Directory { path, .. } => {
-            let resolved = if CURRENT_OS == "macos" {
-                path.macos.as_deref()
-            } else {
-                path.windows.as_deref()
-            };
-            match resolved {
-                Some(p) if !p.is_empty() => open_directory(p),
-                _ => Err(format!("No path configured for OS: {}", CURRENT_OS)),
-            }
-        }
-        Target::Application { path, args, command, .. } => {
-            // Try command first, then path
-            let cmd_str = if CURRENT_OS == "macos" {
-                command.as_ref().and_then(|c| c.macos.as_deref())
-            } else {
-                command.as_ref().and_then(|c| c.windows.as_deref())
-            };
-
-            if let Some(cmd) = cmd_str {
+        Target::Directory { path, .. } => resolve_os_path(path).and_then(open_directory),
+        Target::Application {
+            path,
+            args,
+            command,
+            ..
+        } => {
+            if let Some(cmd) = resolve_os_command(command.as_ref()) {
                 run_command(cmd)
             } else {
-                let app_path = if CURRENT_OS == "macos" {
-                    path.macos.as_deref()
-                } else {
-                    path.windows.as_deref()
-                };
-                match app_path {
-                    Some(p) if !p.is_empty() => {
-                        let arg_list: Vec<&str> = args
-                            .as_ref()
-                            .map(|a| a.iter().map(|s| s.as_str()).collect())
-                            .unwrap_or_default();
-                        launch_application(p, &arg_list)
-                    }
-                    _ => Err(format!("No path configured for OS: {}", CURRENT_OS)),
-                }
+                let arg_list = args_as_slices(args);
+                resolve_os_path(path).and_then(|app_path| launch_path(app_path, &arg_list))
             }
+        }
+        Target::File { path, args, .. } => {
+            let arg_list = args_as_slices(args);
+            resolve_os_path(path).and_then(|file_path| open_file(file_path, &arg_list))
+        }
+        Target::Console {
+            command,
+            working_dir,
+            ..
+        } => {
+            let cmd = resolve_os_command(command.as_ref());
+            let dir = working_dir
+                .as_ref()
+                .and_then(|path| resolve_os_path(path).ok())
+                .map(expand_path);
+            open_console(cmd, dir.as_deref())
         }
     };
 
@@ -164,6 +155,33 @@ fn execute_target(index: usize, target: &Target) -> ExecutionResult {
     }
 }
 
+fn resolve_os_path(path: &OsPath) -> Result<&str, String> {
+    let resolved = if CURRENT_OS == "macos" {
+        path.macos.as_deref()
+    } else {
+        path.windows.as_deref()
+    };
+    match resolved {
+        Some(p) if !p.trim().is_empty() => Ok(p),
+        _ => Err(format!("No path configured for OS: {}", CURRENT_OS)),
+    }
+}
+
+fn resolve_os_command(command: Option<&OsCommand>) -> Option<&str> {
+    let resolved = if CURRENT_OS == "macos" {
+        command.and_then(|c| c.macos.as_deref())
+    } else {
+        command.and_then(|c| c.windows.as_deref())
+    };
+    resolved.filter(|cmd| !cmd.trim().is_empty())
+}
+
+fn args_as_slices(args: &Option<Vec<String>>) -> Vec<&str> {
+    args.as_ref()
+        .map(|items| items.iter().map(|item| item.as_str()).collect())
+        .unwrap_or_default()
+}
+
 fn open_url(url: &str) -> Result<(), String> {
     if url.is_empty() {
         return Err("Empty URL".to_string());
@@ -173,19 +191,55 @@ fn open_url(url: &str) -> Result<(), String> {
 
 fn open_directory(path: &str) -> Result<(), String> {
     let expanded = expand_path(path);
-    let p = std::path::Path::new(&expanded);
-    if !p.exists() {
+    let dir = std::path::Path::new(&expanded);
+    if !dir.exists() {
         return Err(format!("Directory not found: {}", expanded));
     }
     open::that(&expanded).map_err(|e| format!("Failed to open directory: {}", e))
 }
 
-fn launch_application(path: &str, args: &[&str]) -> Result<(), String> {
+fn open_file(path: &str, args: &[&str]) -> Result<(), String> {
+    let expanded = expand_path(path);
+    let file = std::path::Path::new(&expanded);
+    if !file.exists() {
+        return Err(format!("File not found: {}", expanded));
+    }
+
+    if !args.is_empty() || is_direct_launch_file(&expanded) {
+        launch_path(&expanded, args)
+    } else {
+        open::that(&expanded).map_err(|e| format!("Failed to open file: {}", e))
+    }
+}
+
+fn is_direct_launch_file(path: &str) -> bool {
+    let extension = std::path::Path::new(path)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    #[cfg(target_os = "windows")]
+    {
+        matches!(extension.as_str(), "exe" | "bat" | "cmd" | "com" | "ps1")
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        matches!(extension.as_str(), "sh" | "command" | "tool")
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        !extension.is_empty()
+    }
+}
+
+fn launch_path(path: &str, args: &[&str]) -> Result<(), String> {
     let expanded = expand_path(path);
 
     #[cfg(target_os = "macos")]
     {
-        // On macOS, use `open` command for .app bundles
         if expanded.ends_with(".app") {
             let mut cmd = Command::new("open");
             cmd.arg(&expanded);
@@ -193,36 +247,106 @@ fn launch_application(path: &str, args: &[&str]) -> Result<(), String> {
                 cmd.arg("--args");
                 cmd.args(args);
             }
-            cmd.spawn().map_err(|e| format!("Failed to launch {}: {}", expanded, e))?;
-            return Ok(());
+            return cmd
+                .spawn()
+                .map(|_| ())
+                .map_err(|e| format!("Failed to launch {}: {}", expanded, e));
         }
     }
 
-    #[cfg(target_os = "windows")]
-    {
-        Command::new(&expanded)
-            .args(args)
-            .spawn()
-            .map_err(|e| format!("Failed to launch {}: {}", expanded, e))?;
-        return Ok(());
-    }
-
-    // Fallback: try direct spawn
     Command::new(&expanded)
         .args(args)
         .spawn()
-        .map_err(|e| format!("Failed to launch {}: {}", expanded, e))?;
+        .map(|_| ())
+        .map_err(|e| format!("Failed to launch {}: {}", expanded, e))
+}
 
-    Ok(())
+fn open_console(command: Option<&str>, working_dir: Option<&str>) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let mut parts: Vec<String> = Vec::new();
+        if let Some(dir) = working_dir {
+            parts.push(format!("cd /d \"{}\"", dir.replace('"', "\"\"")));
+        }
+        if let Some(cmd) = command {
+            parts.push(cmd.to_string());
+        }
+
+        if parts.is_empty() {
+            return Command::new("cmd")
+                .spawn()
+                .map(|_| ())
+                .map_err(|e| format!("Failed to open console: {}", e));
+        }
+
+        return Command::new("cmd")
+            .args(["/K", &parts.join(" && ")])
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| format!("Failed to open console: {}", e));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let mut parts: Vec<String> = Vec::new();
+        if let Some(dir) = working_dir {
+            parts.push(format!("cd {}", shell_quote(dir)));
+        }
+        if let Some(cmd) = command {
+            parts.push(cmd.to_string());
+        }
+
+        if parts.is_empty() {
+            return Command::new("open")
+                .args(["-a", "Terminal"])
+                .spawn()
+                .map(|_| ())
+                .map_err(|e| format!("Failed to open console: {}", e));
+        }
+
+        let script = parts.join("; ");
+        return Command::new("osascript")
+            .args([
+                "-e",
+                &format!(
+                    "tell application \"Terminal\" to do script \"{}\"",
+                    escape_applescript(&script)
+                ),
+                "-e",
+                "tell application \"Terminal\" to activate",
+            ])
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| format!("Failed to open console: {}", e));
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let mut script = String::new();
+        if let Some(dir) = working_dir {
+            script.push_str(&format!("cd {};", shell_quote(dir)));
+        }
+        if let Some(cmd) = command {
+            script.push_str(cmd);
+            script.push(';');
+        }
+        script.push_str("exec sh");
+        Command::new("sh")
+            .args(["-c", &script])
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| format!("Failed to open console: {}", e))
+    }
 }
 
 fn run_command(cmd: &str) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        Command::new("cmd")
+        return Command::new("cmd")
             .args(["/C", cmd])
             .spawn()
-            .map_err(|e| format!("Failed to run command: {}", e))?;
+            .map(|_| ())
+            .map_err(|e| format!("Failed to run command: {}", e));
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -230,24 +354,34 @@ fn run_command(cmd: &str) -> Result<(), String> {
         Command::new("sh")
             .args(["-c", cmd])
             .spawn()
-            .map_err(|e| format!("Failed to run command: {}", e))?;
+            .map(|_| ())
+            .map_err(|e| format!("Failed to run command: {}", e))
     }
+}
 
-    Ok(())
+#[cfg(not(target_os = "windows"))]
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
+#[cfg(target_os = "macos")]
+fn escape_applescript(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
 fn expand_path(path: &str) -> String {
-    if path.starts_with('~') {
+    let mut result = if path.starts_with('~') {
         if let Some(home) = dirs::home_dir() {
-            return path.replacen('~', &home.to_string_lossy(), 1);
+            path.replacen('~', &home.to_string_lossy(), 1)
+        } else {
+            path.to_string()
         }
-    }
+    } else {
+        path.to_string()
+    };
 
-    // Windows environment variable expansion
     #[cfg(target_os = "windows")]
     {
-        let mut result = path.to_string();
-        // Simple %VAR% expansion
         while let Some(start) = result.find('%') {
             if let Some(end) = result[start + 1..].find('%') {
                 let var_name = &result[start + 1..start + 1 + end];
@@ -260,8 +394,7 @@ fn expand_path(path: &str) -> String {
                 break;
             }
         }
-        return result;
     }
 
-    path.to_string()
+    result
 }

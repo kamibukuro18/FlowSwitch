@@ -17,6 +17,7 @@ export type AppState = {
 const DEFAULT_SETTINGS: AppSettings = {
   theme: "dark",
   language: "en",
+  keepRunningInTray: true,
 };
 
 export function useAppStore() {
