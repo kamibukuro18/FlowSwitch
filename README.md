@@ -1,3 +1,5 @@
+[English](README.md) | [日本語](README.ja.md)
+
 # FlowSwitch
 
 FlowSwitch is a Tauri desktop app for switching work context in one click.
