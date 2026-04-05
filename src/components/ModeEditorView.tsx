@@ -123,7 +123,7 @@ function TargetRowIcon({ target }: { target: Target }) {
 }
 
 export function ModeEditorView({ store }: Props) {
-  const { state, saveMode, navigateTo } = store;
+  const { state, saveMode, navigateTo, showToast } = store;
   const lang = (state.settings.language ?? "en") as Lang;
   const initialMode = state.editingMode!;
 
@@ -188,9 +188,16 @@ export function ModeEditorView({ store }: Props) {
     setShowAddChooser(false);
   }
 
+  function openAddDialog() {
+    setShowAddChooser(true);
+    setActiveTab(null);
+    setSelectedTargetIndex(null);
+    setEditingTargetIndex(null);
+  }
+
   function startAdding(tab: AddTab) {
     setActiveTab(tab);
-    setShowAddChooser(false);
+    setShowAddChooser(true);
     setSelectedTargetIndex(null);
     setEditingTargetIndex(null);
   }
@@ -206,7 +213,7 @@ export function ModeEditorView({ store }: Props) {
     setEditingTargetIndex(null);
   }
 
-  function closeAddPanel() {
+  function closeAddDialog() {
     if (activeTab === "paste") {
       setPasteText("");
     }
@@ -214,20 +221,19 @@ export function ModeEditorView({ store }: Props) {
       setBookmarkSearch("");
     }
     setActiveTab(null);
+    setShowAddChooser(false);
   }
 
-  function handleEscapeClose() {
-    if (editingTargetIndex !== null) {
-      closeTargetEditor();
+  function closeAddPanel() {
+    closeAddDialog();
+  }
+
+  function handleBack() {
+    if (window.history.state?.view === "editor") {
+      window.history.back();
       return;
     }
-    if (activeTab !== null) {
-      closeAddPanel();
-      return;
-    }
-    if (showAddChooser) {
-      setShowAddChooser(false);
-    }
+    navigateTo("modes");
   }
 
   function addTargetsAndSelect(targets: Target[]) {
@@ -237,6 +243,7 @@ export function ModeEditorView({ store }: Props) {
     setSelectedTargetIndex(nextIndex);
     setActiveTab(null);
     setShowAddChooser(false);
+    showToast("target_added");
   }
 
   function isRecentDrop(signature: string) {
@@ -351,15 +358,29 @@ export function ModeEditorView({ store }: Props) {
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
-      if (editingTargetIndex === null && activeTab === null && !showAddChooser) return;
-      event.preventDefault();
-      handleEscapeClose();
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (editingTargetIndex !== null) {
+          closeTargetEditor();
+          return;
+        }
+        if (showAddChooser || activeTab !== null) {
+          closeAddDialog();
+          return;
+        }
+        handleBack();
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        handleSave();
+      }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeTab, editingTargetIndex, showAddChooser]);
+  }, [activeTab, editingTargetIndex, handleSave, showAddChooser]);
 
   useEffect(() => {
     function handlePointerMove(event: PointerEvent) {
@@ -473,7 +494,7 @@ export function ModeEditorView({ store }: Props) {
 
   async function handleTabBookmarks() {
     setActiveTab("bookmarks");
-    setShowAddChooser(false);
+    setShowAddChooser(true);
     setSelectedTargetIndex(null);
     if (bookmarks.length > 0) return;
     setBookmarksLoading(true);
@@ -707,8 +728,7 @@ export function ModeEditorView({ store }: Props) {
   function renderAddPanel() {
     if (activeTab === "paste") {
       return (
-        <div className="target-inline-panel">
-          <div className="tab-panel">
+        <div className="tab-panel">
             <textarea
               className="paste-textarea"
               value={pasteText}
@@ -720,15 +740,13 @@ export function ModeEditorView({ store }: Props) {
               <button className="btn-save" onClick={handlePasteAdd} disabled={!pasteText.trim()}>{t(lang, "add")}</button>
               <button className="back-btn" onClick={closeAddPanel}>{t(lang, "cancel")}</button>
             </div>
-          </div>
         </div>
       );
     }
 
     if (activeTab === "bookmarks") {
       return (
-        <div className="target-inline-panel">
-          <div className="tab-panel tab-panel-bookmarks">
+        <div className="tab-panel tab-panel-bookmarks">
             <div className="bookmark-panel-header">
               <input
                 className="bookmark-search"
@@ -775,15 +793,13 @@ export function ModeEditorView({ store }: Props) {
               </button>
               <button className="back-btn" onClick={closeAddPanel}>{t(lang, "close")}</button>
             </div>
-          </div>
         </div>
       );
     }
 
     if (activeTab === "app") {
       return (
-        <div className="target-inline-panel">
-          <div className="tab-panel">
+        <div className="tab-panel">
             <div className="form-group">
               <label>{t(lang, "app_name_label")}</label>
               <input type="text" value={newApp.name} onChange={(e) => setNewApp((a) => ({ ...a, name: e.target.value }))} placeholder="VSCode, Spotify..." autoFocus />
@@ -810,15 +826,13 @@ export function ModeEditorView({ store }: Props) {
               <button className="btn-save" onClick={handleAddApp} disabled={!newApp.name.trim()}>{t(lang, "add")}</button>
               <button className="back-btn" onClick={closeAddPanel}>{t(lang, "cancel")}</button>
             </div>
-          </div>
         </div>
       );
     }
 
     if (activeTab === "dir") {
       return (
-        <div className="target-inline-panel">
-          <div className="tab-panel">
+        <div className="tab-panel">
             <div className="form-group">
               <label>{t(lang, "label_optional")}</label>
               <input type="text" value={newDir.label ?? ""} onChange={(e) => setNewDir((d) => ({ ...d, label: e.target.value }))} placeholder="My Projects..." autoFocus />
@@ -841,15 +855,13 @@ export function ModeEditorView({ store }: Props) {
               <button className="btn-save" onClick={handleAddDir} disabled={!newDir.path.macos && !newDir.path.windows}>{t(lang, "add")}</button>
               <button className="back-btn" onClick={closeAddPanel}>{t(lang, "cancel")}</button>
             </div>
-          </div>
         </div>
       );
     }
 
     if (activeTab === "file") {
       return (
-        <div className="target-inline-panel">
-          <div className="tab-panel">
+        <div className="tab-panel">
             <div className="form-group">
               <label>{t(lang, "label_optional")}</label>
               <input
@@ -897,15 +909,13 @@ export function ModeEditorView({ store }: Props) {
               <button className="btn-save" onClick={handleAddFile} disabled={!newFile.path.macos && !newFile.path.windows}>{t(lang, "add")}</button>
               <button className="back-btn" onClick={closeAddPanel}>{t(lang, "cancel")}</button>
             </div>
-          </div>
         </div>
       );
     }
 
     if (activeTab === "console") {
       return (
-        <div className="target-inline-panel">
-          <div className="tab-panel">
+        <div className="tab-panel">
             <div className="form-group">
               <label>{t(lang, "console_name_label")}</label>
               <input
@@ -962,7 +972,6 @@ export function ModeEditorView({ store }: Props) {
               <button className="btn-save" onClick={handleAddConsole}>{t(lang, "add")}</button>
               <button className="back-btn" onClick={closeAddPanel}>{t(lang, "cancel")}</button>
             </div>
-          </div>
         </div>
       );
     }
@@ -973,7 +982,7 @@ export function ModeEditorView({ store }: Props) {
   return (
     <div className="editor-view">
       <div className="editor-header">
-        <button className="back-btn" onClick={() => navigateTo("modes")}>{t(lang, "back")}</button>
+        <button className="back-btn" onClick={handleBack}>{t(lang, "back")}</button>
         <h2>{initialMode.name ? t(lang, "edit_mode_title", initialMode.name) : t(lang, "new_mode")}</h2>
         <button className="btn-save" onClick={handleSave}>{t(lang, "save")}</button>
       </div>
@@ -1043,35 +1052,11 @@ export function ModeEditorView({ store }: Props) {
             <div className="targets-toolbar">
               <button
                 className="add-target-btn"
-                onClick={() => {
-                  setShowAddChooser((prev) => !prev);
-                  setActiveTab(null);
-                }}
+                onClick={openAddDialog}
               >
                 + Add Target
               </button>
             </div>
-
-            {showAddChooser && (
-              <div className="target-type-chooser">
-                {(["paste", "bookmarks", "app", "dir", "file", "console"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    className="target-type-option"
-                    onClick={tab === "bookmarks" ? handleTabBookmarks : () => startAdding(tab)}
-                  >
-                    {tab === "paste" && t(lang, "tab_paste")}
-                    {tab === "bookmarks" && t(lang, "tab_bookmarks")}
-                    {tab === "app" && t(lang, "tab_app")}
-                    {tab === "dir" && t(lang, "tab_dir")}
-                    {tab === "file" && t(lang, "tab_file")}
-                    {tab === "console" && t(lang, "tab_console")}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {renderAddPanel()}
 
             {mode.targets.length === 0 && !activeTab && !isDragOver && (
               <div className="targets-empty">{t(lang, "targets_empty")}</div>
@@ -1190,6 +1175,43 @@ export function ModeEditorView({ store }: Props) {
               onChange={(patch) => updateTarget(editingTargetIndex, patch)}
               onRemove={() => removeTarget(editingTargetIndex)}
             />
+          </div>
+        </div>
+      )}
+      {(showAddChooser || activeTab !== null) && (
+        <div className="target-editor-modal-backdrop" onClick={closeAddDialog}>
+          <div className="target-editor-modal add-target-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="target-editor-modal-header">
+              <h3>Add Target</h3>
+              <button className="target-editor-modal-close" onClick={closeAddDialog}>
+                {t(lang, "close")}
+              </button>
+            </div>
+
+            <div className="add-target-modal-body">
+              <div className="add-target-tabs">
+                {(["paste", "bookmarks", "app", "dir", "file", "console"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    className={`add-tab-btn ${activeTab === tab ? "active" : ""}`}
+                    onClick={tab === "bookmarks" ? handleTabBookmarks : () => startAdding(tab)}
+                  >
+                    {tab === "paste" && t(lang, "tab_paste")}
+                    {tab === "bookmarks" && t(lang, "tab_bookmarks")}
+                    {tab === "app" && t(lang, "tab_app")}
+                    {tab === "dir" && t(lang, "tab_dir")}
+                    {tab === "file" && t(lang, "tab_file")}
+                    {tab === "console" && t(lang, "tab_console")}
+                  </button>
+                ))}
+              </div>
+
+              {activeTab === null ? (
+                <div className="add-target-modal-empty">Choose a target type to configure it.</div>
+              ) : (
+                renderAddPanel()
+              )}
+            </div>
           </div>
         </div>
       )}

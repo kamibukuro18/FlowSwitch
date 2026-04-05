@@ -9,20 +9,12 @@ export const SAMPLE_CONFIG: Config = {
       description: "Start coding environment",
       shortcut: "CmdOrCtrl+Shift+1",
       color: "#6366f1",
-      icon: "⌨️",
+      icon: "⚙️",
       keepAliveApps: ["Slack"],
       exitAction: "minimize",
       targets: [
-        {
-          type: "url",
-          value: "https://github.com",
-          label: "GitHub",
-        },
-        {
-          type: "url",
-          value: "http://localhost:3000",
-          label: "Local Dev Server",
-        },
+        { type: "url", value: "https://github.com", label: "GitHub" },
+        { type: "url", value: "http://localhost:3000", label: "Local Dev Server" },
         {
           type: "directory",
           label: "Projects Folder",
@@ -36,8 +28,7 @@ export const SAMPLE_CONFIG: Config = {
           name: "VSCode",
           path: {
             macos: "/Applications/Visual Studio Code.app",
-            windows:
-              "C:\\Users\\USER\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
+            windows: "C:\\Users\\USER\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
           },
           args: [],
         },
@@ -52,21 +43,9 @@ export const SAMPLE_CONFIG: Config = {
       icon: "✍️",
       exitAction: "nothing",
       targets: [
-        {
-          type: "url",
-          value: "https://notion.so",
-          label: "Notion",
-        },
-        {
-          type: "url",
-          value: "https://claude.ai",
-          label: "Claude AI",
-        },
-        {
-          type: "url",
-          value: "https://chatgpt.com",
-          label: "ChatGPT",
-        },
+        { type: "url", value: "https://notion.so", label: "Notion" },
+        { type: "url", value: "https://claude.ai", label: "Claude AI" },
+        { type: "url", value: "https://chatgpt.com", label: "ChatGPT" },
         {
           type: "directory",
           label: "Documents",
@@ -86,16 +65,8 @@ export const SAMPLE_CONFIG: Config = {
       icon: "🎨",
       exitAction: "nothing",
       targets: [
-        {
-          type: "url",
-          value: "https://figma.com",
-          label: "Figma",
-        },
-        {
-          type: "url",
-          value: "https://dribbble.com",
-          label: "Dribbble",
-        },
+        { type: "url", value: "https://figma.com", label: "Figma" },
+        { type: "url", value: "https://dribbble.com", label: "Dribbble" },
         {
           type: "application",
           name: "Spotify",

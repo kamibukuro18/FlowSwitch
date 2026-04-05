@@ -271,6 +271,17 @@
   gap: 10px;
 }
 
+.target-inline-panel {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+.target-inline-panel .tab-panel {
+  margin-bottom: 0;
+  max-height: min(48vh, 460px);
+  overflow-y: auto;
+}
+
 .tab-panel-bookmarks {
   padding: 0;
   gap: 0;
@@ -306,8 +317,15 @@
 
 .tab-panel:not(.tab-panel-bookmarks) .tab-panel-footer {
   border-top: none;
-  padding: 0;
-  background: none;
+  padding: 10px 0 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(44, 44, 46, 0),
+    rgba(44, 44, 46, 0.96) 34%
+  );
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
 }
 
 .add-target-btns {
@@ -335,6 +353,14 @@
   background: rgba(0, 122, 255, 0.08);
   border-color: rgba(0, 122, 255, 0.18);
   color: var(--accent-primary);
+}
+
+[data-theme="light"] .tab-panel:not(.tab-panel-bookmarks) .tab-panel-footer {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.98) 34%
+  );
 }
 
 .add-target-btn.danger {
@@ -703,6 +729,17 @@
   overflow: hidden;
 }
 
+.targets-stack.adding {
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+
+.targets-stack.adding .target-summary-list {
+  flex: 0 0 auto;
+  height: auto;
+  max-height: min(34vh, 280px);
+}
+
 .targets-toolbar {
   display: flex;
   align-items: center;
@@ -966,6 +1003,10 @@
   padding: 16px;
 }
 
+.add-target-modal {
+  width: min(780px, calc(100vw - 48px));
+}
+
 .target-editor-modal-header {
   display: flex;
   align-items: center;
@@ -997,6 +1038,28 @@
 .target-editor-modal-close:hover {
   background: rgba(128, 128, 128, 0.14);
   color: var(--text-primary);
+}
+
+.add-target-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.add-target-modal .tab-panel {
+  margin-bottom: 0;
+}
+
+.add-target-modal-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  text-align: center;
+  padding: 18px;
 }
 
 .editor-drop-overlay {

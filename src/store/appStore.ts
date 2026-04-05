@@ -9,6 +9,7 @@ export type AppState = {
   currentView: View;
   editingMode: Mode | null;
   lastExecutionResult: ModeExecutionResult | null;
+  toast: { id: number; kind: "mode_saved" | "target_added" } | null;
   isLoading: boolean;
   error: string | null;
   searchQuery: string;
@@ -27,6 +28,7 @@ export function useAppStore() {
     currentView: "modes",
     editingMode: null,
     lastExecutionResult: null,
+    toast: null,
     isLoading: false,
     error: null,
     searchQuery: "",
@@ -67,6 +69,14 @@ export function useAppStore() {
     setState((s) => ({ ...s, searchQuery }));
   }, []);
 
+  const clearToast = useCallback(() => {
+    setState((s) => ({ ...s, toast: null }));
+  }, []);
+
+  const showToast = useCallback((kind: "mode_saved" | "target_added") => {
+    setState((s) => ({ ...s, toast: { id: Date.now(), kind } }));
+  }, []);
+
   const saveMode = useCallback((mode: Mode) => {
     setState((s) => {
       if (!s.config) return s;
@@ -80,6 +90,7 @@ export function useAppStore() {
         config: { ...s.config, modes },
         currentView: "modes",
         editingMode: null,
+        toast: { id: Date.now(), kind: "mode_saved" },
       };
     });
   }, []);
@@ -107,6 +118,8 @@ export function useAppStore() {
     setLoading,
     setError,
     setSearchQuery,
+    clearToast,
+    showToast,
     saveMode,
     deleteMode,
   };

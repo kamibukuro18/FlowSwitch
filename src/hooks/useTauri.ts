@@ -1,5 +1,6 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
-import { Config, ModeExecutionResult, AppSettings } from "../types";
+import { register as registerGlobalShortcut, unregisterAll } from "@tauri-apps/plugin-global-shortcut";
+import { AppSettings, Config, ModeExecutionResult } from "../types";
 
 function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (!("__TAURI_INTERNALS__" in window)) {
@@ -10,21 +11,27 @@ function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   return tauriInvoke<T>(cmd, args);
 }
 
+function isTauriRuntime() {
+  return "__TAURI_INTERNALS__" in window;
+}
+
+function normalizeShortcut(shortcut: string): string {
+  return shortcut
+    .trim()
+    .replace(/CmdOrCtrl/gi, "CommandOrControl")
+    .replace(/CmdOrControl/gi, "CommandOrControl")
+    .replace(/Ctrl/gi, "Control");
+}
+
 export async function loadConfig(filePath: string): Promise<Config> {
   return invoke<Config>("load_config", { filePath });
 }
 
-export async function saveConfig(
-  filePath: string,
-  config: Config
-): Promise<void> {
+export async function saveConfig(filePath: string, config: Config): Promise<void> {
   return invoke<void>("save_config", { filePath, config });
 }
 
-export async function executeMode(
-  modeId: string,
-  config: Config
-): Promise<ModeExecutionResult> {
+export async function executeMode(modeId: string, config: Config): Promise<ModeExecutionResult> {
   return invoke<ModeExecutionResult>("execute_mode", { modeId, config });
 }
 
@@ -36,8 +43,35 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
   return invoke<void>("save_settings", { settings });
 }
 
-export async function registerShortcuts(config: Config): Promise<void> {
-  return invoke<void>("register_shortcuts", { config });
+export async function registerShortcuts(
+  config: Config,
+  onTriggered: (modeId: string) => void | Promise<void>
+): Promise<void> {
+  if (!isTauriRuntime()) return;
+
+  await unregisterAll();
+
+  const seen = new Set<string>();
+
+  for (const mode of config.modes) {
+    if (!mode.shortcut?.trim()) continue;
+
+    const shortcut = normalizeShortcut(mode.shortcut);
+    if (!shortcut || seen.has(shortcut)) continue;
+    seen.add(shortcut);
+
+    await registerGlobalShortcut(shortcut, async (event) => {
+      if (event.state !== "Pressed") return;
+      await onTriggered(mode.id);
+    }).catch((error) => {
+      console.warn(`Failed to register shortcut "${shortcut}" for mode "${mode.name}":`, error);
+    });
+  }
+}
+
+export async function clearShortcuts(): Promise<void> {
+  if (!isTauriRuntime()) return;
+  await unregisterAll().catch(() => {});
 }
 
 export async function checkPathType(path: string): Promise<"dir" | "app" | "file"> {

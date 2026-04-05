@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
-import { t, Lang } from "../i18n";
-import { Config } from "../types";
-import { getDefaultConfigPath, saveSettings, saveConfig } from "../hooks/useTauri";
+import { useEffect, useState } from "react";
+import { getDefaultConfigPath, saveConfig, saveSettings } from "../hooks/useTauri";
 import { useAppStore } from "../store/appStore";
+import { Config } from "../types";
+import { t, Lang } from "../i18n";
 import "./WelcomeWizard.css";
 
 type Props = {
@@ -19,16 +19,15 @@ export function WelcomeWizard({ store, onFinish }: Props) {
   const [pasteText, setPasteText] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const TOTAL_STEPS = 3;
+  const totalSteps = 3;
 
-  // Initialise default path on first render
   useEffect(() => {
-    getDefaultConfigPath().then((p) => setConfigPath(p)).catch(() => {});
+    getDefaultConfigPath().then(setConfigPath).catch(() => {});
   }, []);
 
-  function handleLangChange(newLang: Lang) {
-    setLang(newLang);
-    setSettings({ language: newLang });
+  function handleLangChange(nextLang: Lang) {
+    setLang(nextLang);
+    setSettings({ language: nextLang });
   }
 
   async function handleFinish(createMode: boolean) {
@@ -36,39 +35,40 @@ export function WelcomeWizard({ store, onFinish }: Props) {
     try {
       const targets = pasteText
         .split(/[\n\r,]+/)
-        .map((u) => u.trim())
-        .filter((u) => u.startsWith("http"))
-        .map((url) => ({ type: "url" as const, value: url, label: "" }));
+        .map((value) => value.trim())
+        .filter((value) => value.startsWith("http"))
+        .map((value) => ({ type: "url" as const, value, label: "" }));
 
       const config: Config = {
         version: 1,
-        modes: createMode && modeName.trim()
-          ? [{
-              id: crypto.randomUUID(),
-              name: modeName.trim(),
-              targets,
-              exitAction: "nothing",
-            }]
-          : [],
+        modes:
+          createMode && modeName.trim()
+            ? [
+                {
+                  id: crypto.randomUUID(),
+                  name: modeName.trim(),
+                  targets,
+                  exitAction: "nothing",
+                },
+              ]
+            : [],
       };
 
-      // Save config file
       await saveConfig(configPath, config);
       setConfig(config);
 
-      // Save settings with onboarding flag
-      const newSettings = {
+      const nextSettings = {
         ...state.settings,
         language: lang,
         configFilePath: configPath,
         onboardingComplete: true,
       };
-      setSettings(newSettings);
-      await saveSettings(newSettings);
 
+      setSettings(nextSettings);
+      await saveSettings(nextSettings);
       onFinish();
-    } catch (err) {
-      setError(`Setup failed: ${err}`);
+    } catch (error) {
+      setError(`Setup failed: ${error}`);
     } finally {
       setLoading(false);
     }
@@ -77,16 +77,18 @@ export function WelcomeWizard({ store, onFinish }: Props) {
   return (
     <div className="wizard-overlay">
       <div className="wizard-card">
-        {/* Language toggle — always visible */}
         <div className="wizard-lang-toggle">
-          <button className={lang === "en" ? "active" : ""} onClick={() => handleLangChange("en")}>EN</button>
-          <button className={lang === "ja" ? "active" : ""} onClick={() => handleLangChange("ja")}>JA</button>
+          <button className={lang === "en" ? "active" : ""} onClick={() => handleLangChange("en")}>
+            EN
+          </button>
+          <button className={lang === "ja" ? "active" : ""} onClick={() => handleLangChange("ja")}>
+            JA
+          </button>
         </div>
 
-        {/* Step 1: Welcome */}
         {step === 1 && (
           <div className="wizard-step">
-            <div className="wizard-hero">⚡</div>
+            <div className="wizard-hero">FlowSwitch</div>
             <h1>{t(lang, "welcome_title")}</h1>
             <p className="wizard-desc">{t(lang, "welcome_desc")}</p>
             <button className="wizard-btn primary" onClick={() => setStep(2)}>
@@ -95,28 +97,29 @@ export function WelcomeWizard({ store, onFinish }: Props) {
           </div>
         )}
 
-        {/* Step 2: Config path */}
         {step === 2 && (
           <div className="wizard-step">
-            <div className="wizard-step-indicator">{t(lang, "step_of", 1, TOTAL_STEPS - 1)}</div>
+            <div className="wizard-step-indicator">{t(lang, "step_of", 1, totalSteps - 1)}</div>
             <h2>{t(lang, "setup_path_title")}</h2>
             <p className="wizard-desc">{t(lang, "setup_path_desc")}</p>
             <div className="wizard-input-row">
               <input
                 type="text"
                 value={configPath}
-                onChange={(e) => setConfigPath(e.target.value)}
+                onChange={(event) => setConfigPath(event.target.value)}
                 placeholder="/path/to/flowswitch.json"
               />
               <button
                 className="wizard-btn outline"
-                onClick={() => getDefaultConfigPath().then((p) => setConfigPath(p)).catch(() => {})}
+                onClick={() => getDefaultConfigPath().then(setConfigPath).catch(() => {})}
               >
                 {t(lang, "default_btn")}
               </button>
             </div>
             <div className="wizard-nav">
-              <button className="wizard-btn ghost" onClick={() => setStep(1)}>{t(lang, "back")}</button>
+              <button className="wizard-btn ghost" onClick={() => setStep(1)}>
+                {t(lang, "back")}
+              </button>
               <button className="wizard-btn primary" onClick={() => setStep(3)} disabled={!configPath.trim()}>
                 {t(lang, "next")}
               </button>
@@ -124,30 +127,31 @@ export function WelcomeWizard({ store, onFinish }: Props) {
           </div>
         )}
 
-        {/* Step 3: First mode */}
         {step === 3 && (
           <div className="wizard-step">
-            <div className="wizard-step-indicator">{t(lang, "step_of", 2, TOTAL_STEPS - 1)}</div>
+            <div className="wizard-step-indicator">{t(lang, "step_of", 2, totalSteps - 1)}</div>
             <h2>{t(lang, "first_mode_title")}</h2>
             <p className="wizard-desc">{t(lang, "first_mode_desc")}</p>
             <div className="wizard-form">
               <input
                 type="text"
                 value={modeName}
-                onChange={(e) => setModeName(e.target.value)}
+                onChange={(event) => setModeName(event.target.value)}
                 placeholder={t(lang, "mode_name_wizard_ph")}
                 className="wizard-mode-name"
               />
               <textarea
                 value={pasteText}
-                onChange={(e) => setPasteText(e.target.value)}
+                onChange={(event) => setPasteText(event.target.value)}
                 placeholder={t(lang, "urls_wizard_ph")}
                 className="wizard-urls"
                 rows={4}
               />
             </div>
             <div className="wizard-nav">
-              <button className="wizard-btn ghost" onClick={() => setStep(2)}>{t(lang, "back")}</button>
+              <button className="wizard-btn ghost" onClick={() => setStep(2)}>
+                {t(lang, "back")}
+              </button>
               <button className="wizard-btn ghost" onClick={() => handleFinish(false)} disabled={loading}>
                 {t(lang, "skip")}
               </button>

@@ -53,11 +53,7 @@
   border-radius: 6px;
   font-size: 13px;
   transition: all 0.12s;
-  opacity: 0;
-}
-
-.mode-card:hover .card-action-btn {
-  opacity: 1;
+  flex-shrink: 0;
 }
 
 .card-action-btn:hover {
@@ -65,27 +61,19 @@
   color: var(--text-primary);
 }
 
-.card-action-btn.danger:hover {
-  background: rgba(255, 69, 58, 0.12);
+.card-action-btn svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+}
+
+.card-action-btn.danger {
   color: var(--accent-danger);
 }
 
-.btn-danger-sm {
-  padding: 4px 10px;
-  background: var(--accent-danger);
-  color: white;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.btn-cancel-sm {
-  padding: 4px 10px;
-  background: rgba(128, 128, 128, 0.1);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font-size: 12px;
+.card-action-btn.danger:hover {
+  background: rgba(255, 69, 58, 0.12);
+  color: var(--accent-danger);
 }
 
 .launch-btn {

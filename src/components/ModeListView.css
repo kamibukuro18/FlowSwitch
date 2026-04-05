@@ -96,7 +96,7 @@
 }
 
 .btn-icon {
-  width: 32px;
+  min-width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
@@ -107,6 +107,13 @@
   color: var(--text-secondary);
   font-size: 16px;
   transition: all 0.12s;
+}
+
+.btn-icon.btn-text {
+  width: auto;
+  padding: 0 12px;
+  font-size: 12.5px;
+  font-weight: 500;
 }
 
 .btn-icon:hover {
@@ -132,11 +139,6 @@
   justify-content: center;
   gap: 12px;
   color: var(--text-muted);
-}
-
-.empty-icon {
-  font-size: 40px;
-  opacity: 0.3;
 }
 
 .empty-state p {

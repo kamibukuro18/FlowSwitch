@@ -1,11 +1,42 @@
 import { useState } from "react";
+import { getDefaultConfigPath, loadConfig, saveSettings } from "../hooks/useTauri";
 import { useAppStore } from "../store/appStore";
-import { loadConfig, saveSettings, getDefaultConfigPath } from "../hooks/useTauri";
 import { t, Lang } from "../i18n";
 import "./SettingsView.css";
 
 type Props = {
   store: ReturnType<typeof useAppStore>;
+};
+
+const CONFIG_EXAMPLE = {
+  version: 1,
+  modes: [
+    {
+      id: "dev",
+      name: "Development",
+      description: "Start coding environment",
+      shortcut: "CmdOrCtrl+Shift+1",
+      color: "#6366f1",
+      icon: "⚙️",
+      exitAction: "minimize",
+      targets: [
+        { type: "url", value: "https://github.com", label: "GitHub" },
+        {
+          type: "directory",
+          label: "Projects",
+          path: { macos: "~/Projects", windows: "%USERPROFILE%\\Projects" },
+        },
+        {
+          type: "application",
+          name: "VSCode",
+          path: {
+            macos: "/Applications/Visual Studio Code.app",
+            windows: "C:\\Program Files\\Microsoft VS Code\\Code.exe",
+          },
+        },
+      ],
+    },
+  ],
 };
 
 export function SettingsView({ store }: Props) {
@@ -21,9 +52,9 @@ export function SettingsView({ store }: Props) {
       keepRunningInTray?: boolean;
     }
   ) {
-    const next = { ...state.settings, ...patch };
+    const nextSettings = { ...state.settings, ...patch };
     setSettings(patch);
-    await saveSettings(next).catch(() => {});
+    await saveSettings(nextSettings).catch(() => {});
   }
 
   async function handleLoadConfig() {
@@ -31,6 +62,7 @@ export function SettingsView({ store }: Props) {
       setError("Please enter a config file path");
       return;
     }
+
     setLoading(true);
     try {
       const config = await loadConfig(configPath.trim());
@@ -38,21 +70,20 @@ export function SettingsView({ store }: Props) {
       setSettings({ configFilePath: configPath.trim() });
       await saveSettings({ ...state.settings, configFilePath: configPath.trim() });
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch (err) {
-      setError(`Failed to load config: ${err}`);
+      window.setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      setError(`Failed to load config: ${error}`);
     } finally {
       setLoading(false);
     }
   }
 
-
   async function handleUseDefault() {
     try {
       const defaultPath = await getDefaultConfigPath();
       setConfigPath(defaultPath);
-    } catch (err) {
-      setError(`Failed to get default path: ${err}`);
+    } catch (error) {
+      setError(`Failed to get default path: ${error}`);
     }
   }
 
@@ -71,7 +102,7 @@ export function SettingsView({ store }: Props) {
             <input
               type="text"
               value={configPath}
-              onChange={(e) => setConfigPath(e.target.value)}
+              onChange={(event) => setConfigPath(event.target.value)}
               placeholder="/path/to/flowswitch.json"
             />
             <button className="btn-outline" onClick={handleUseDefault}>
@@ -83,7 +114,7 @@ export function SettingsView({ store }: Props) {
             <button className="btn-primary" onClick={handleLoadConfig}>
               {t(lang, "load_config")}
             </button>
-            {saved && <span className="saved-indicator">{t(lang, "saved_indicator")}</span>}
+            {saved ? <span className="saved-indicator">{t(lang, "saved_indicator")}</span> : null}
           </div>
           <p className="settings-auto-save-note">{t(lang, "auto_save_note")}</p>
         </section>
@@ -94,7 +125,11 @@ export function SettingsView({ store }: Props) {
             <label>{t(lang, "theme_label")}</label>
             <select
               value={state.settings.theme ?? "dark"}
-              onChange={(e) => handleAppearanceChange({ theme: e.target.value as "light" | "dark" | "system" })}
+              onChange={(event) =>
+                handleAppearanceChange({
+                  theme: event.target.value as "light" | "dark" | "system",
+                })
+              }
             >
               <option value="dark">{t(lang, "theme_dark")}</option>
               <option value="light">{t(lang, "theme_light")}</option>
@@ -105,7 +140,9 @@ export function SettingsView({ store }: Props) {
             <label>{t(lang, "language_label")}</label>
             <select
               value={state.settings.language ?? "en"}
-              onChange={(e) => handleAppearanceChange({ language: e.target.value as "en" | "ja" })}
+              onChange={(event) =>
+                handleAppearanceChange({ language: event.target.value as "en" | "ja" })
+              }
             >
               <option value="en">English</option>
               <option value="ja">日本語</option>
@@ -116,7 +153,9 @@ export function SettingsView({ store }: Props) {
             <input
               type="checkbox"
               checked={state.settings.keepRunningInTray ?? true}
-              onChange={(e) => handleAppearanceChange({ keepRunningInTray: e.target.checked })}
+              onChange={(event) =>
+                handleAppearanceChange({ keepRunningInTray: event.target.checked })
+              }
             />
           </div>
           <p className="settings-section-desc">{t(lang, "tray_residency_desc")}</p>
@@ -125,34 +164,7 @@ export function SettingsView({ store }: Props) {
         <section className="settings-section">
           <h3 className="settings-section-title">{t(lang, "config_format")}</h3>
           <p className="settings-section-desc">{t(lang, "config_format_desc")}</p>
-          <pre className="config-example">{JSON.stringify({
-            version: 1,
-            modes: [{
-              id: "dev",
-              name: "Development",
-              description: "Start coding environment",
-              shortcut: "CmdOrCtrl+Shift+1",
-              color: "#6366f1",
-              icon: "⌨️",
-              exitAction: "minimize",
-              targets: [
-                { type: "url", value: "https://github.com", label: "GitHub" },
-                {
-                  type: "directory",
-                  label: "Projects",
-                  path: { macos: "~/Projects", windows: "%USERPROFILE%\\Projects" }
-                },
-                {
-                  type: "application",
-                  name: "VSCode",
-                  path: {
-                    macos: "/Applications/Visual Studio Code.app",
-                    windows: "C:\\...\\Code.exe"
-                  }
-                }
-              ]
-            }]
-          }, null, 2)}</pre>
+          <pre className="config-example">{JSON.stringify(CONFIG_EXAMPLE, null, 2)}</pre>
         </section>
       </div>
     </div>
