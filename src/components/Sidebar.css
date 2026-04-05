@@ -11,15 +11,9 @@
 .sidebar-logo {
   display: flex;
   align-items: center;
-  gap: 8px;
   padding: 16px 16px 14px;
   /* space for macOS traffic lights on left */
   padding-top: 20px;
-}
-
-.logo-icon {
-  font-size: 18px;
-  line-height: 1;
 }
 
 .logo-text {
@@ -40,12 +34,14 @@
 .sidebar-bottom {
   padding: 8px 8px 12px;
   border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 8px;
   padding: 7px 10px;
   border-radius: var(--radius-sm);
   background: none;
@@ -72,16 +68,24 @@
   color: var(--accent-primary);
 }
 
-.nav-icon {
-  font-size: 14px;
-  width: 18px;
-  text-align: center;
-  flex-shrink: 0;
-  opacity: 0.8;
-}
-
 .nav-label {
   flex: 1;
+}
+
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(48, 209, 88, 0.14);
+  color: var(--accent-success);
+  border: 1px solid rgba(48, 209, 88, 0.18);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .nav-add {
