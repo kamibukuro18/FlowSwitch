@@ -101,8 +101,17 @@ export type BookmarkItem = {
   url: string;
 };
 
+export type InstalledApplication = {
+  name: string;
+  path: string;
+};
+
 export async function getBrowserBookmarks(): Promise<BookmarkItem[]> {
   return invoke<BookmarkItem[]>("get_browser_bookmarks");
+}
+
+export async function getInstalledApplications(): Promise<InstalledApplication[]> {
+  return invoke<InstalledApplication[]>("get_installed_applications");
 }
 
 export async function updateTrayMenu(config: Config): Promise<void> {

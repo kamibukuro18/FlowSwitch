@@ -242,6 +242,7 @@ pub fn run() {
             register_shortcuts,
             get_browser_tabs,
             get_browser_bookmarks,
+            get_installed_applications,
             update_tray_menu,
         ])
         .run(tauri::generate_context!())

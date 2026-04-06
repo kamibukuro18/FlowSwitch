@@ -7,6 +7,11 @@ use std::path::PathBuf;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use std::collections::HashSet;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use std::path::Path;
+
 fn settings_path(app: &AppHandle) -> PathBuf {
     app.path()
         .app_config_dir()
@@ -201,6 +206,227 @@ pub fn get_browser_bookmarks() -> Vec<BookmarkItem> {
         }
     }
     result
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct InstalledApplication {
+    pub name: String,
+    pub path: String,
+}
+
+#[tauri::command]
+pub fn get_installed_applications() -> Vec<InstalledApplication> {
+    #[cfg(target_os = "macos")]
+    {
+        return list_macos_applications();
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        return list_windows_applications();
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        #[cfg(not(target_os = "windows"))]
+        Vec::new()
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn list_macos_applications() -> Vec<InstalledApplication> {
+    let mut apps = Vec::new();
+    let mut seen = HashSet::new();
+    let mut roots = vec![
+        PathBuf::from("/Applications"),
+        PathBuf::from("/Applications/Utilities"),
+        PathBuf::from("/System/Applications"),
+        PathBuf::from("/System/Applications/Utilities"),
+        PathBuf::from("/System/Library/CoreServices"),
+    ];
+
+    if let Some(home) = dirs::home_dir() {
+        roots.push(home.join("Applications"));
+    }
+
+    for root in roots {
+        scan_macos_applications(&root, 4, &mut seen, &mut apps);
+    }
+
+    apps.sort_by(|left, right| {
+        left.name
+            .to_lowercase()
+            .cmp(&right.name.to_lowercase())
+            .then_with(|| left.path.cmp(&right.path))
+    });
+    apps
+}
+
+#[cfg(target_os = "macos")]
+fn scan_macos_applications(
+    dir: &Path,
+    depth: usize,
+    seen: &mut HashSet<String>,
+    apps: &mut Vec<InstalledApplication>,
+) {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+
+        if file_type.is_symlink() {
+            continue;
+        }
+
+        let path = entry.path();
+        if !file_type.is_dir() {
+            continue;
+        }
+
+        let is_app_bundle = path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("app"))
+            .unwrap_or(false);
+
+        if is_app_bundle {
+            let path_string = path.to_string_lossy().to_string();
+            if seen.insert(path_string.to_lowercase()) {
+                let name = path
+                    .file_stem()
+                    .and_then(|stem| stem.to_str())
+                    .unwrap_or("Application")
+                    .to_string();
+                apps.push(InstalledApplication {
+                    name,
+                    path: path_string,
+                });
+            }
+            continue;
+        }
+
+        if depth > 0 {
+            scan_macos_applications(&path, depth - 1, seen, apps);
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn list_windows_applications() -> Vec<InstalledApplication> {
+    let mut apps = Vec::new();
+    let mut seen = HashSet::new();
+    let mut roots = Vec::new();
+
+    if let Ok(program_files) = std::env::var("ProgramFiles") {
+        roots.push(PathBuf::from(program_files));
+    }
+    if let Ok(program_files_x86) = std::env::var("ProgramFiles(x86)") {
+        roots.push(PathBuf::from(program_files_x86));
+    }
+    if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+        let local = PathBuf::from(local_app_data);
+        roots.push(local.join("Programs"));
+        roots.push(local.join("Microsoft").join("WindowsApps"));
+    }
+
+    for root in roots {
+        scan_windows_applications(&root, 4, &mut seen, &mut apps);
+    }
+
+    apps.sort_by(|left, right| {
+        left.name
+            .to_lowercase()
+            .cmp(&right.name.to_lowercase())
+            .then_with(|| left.path.cmp(&right.path))
+    });
+    apps
+}
+
+#[cfg(target_os = "windows")]
+fn scan_windows_applications(
+    dir: &Path,
+    depth: usize,
+    seen: &mut HashSet<String>,
+    apps: &mut Vec<InstalledApplication>,
+) {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        let path = entry.path();
+
+        if file_type.is_symlink() {
+            continue;
+        }
+
+        if file_type.is_dir() {
+            if depth > 0 {
+                scan_windows_applications(&path, depth - 1, seen, apps);
+            }
+            continue;
+        }
+
+        let is_executable = path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("exe"))
+            .unwrap_or(false);
+        if !is_executable {
+            continue;
+        }
+
+        let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if should_skip_windows_executable(file_name) {
+            continue;
+        }
+
+        let path_string = path.to_string_lossy().to_string();
+        if !seen.insert(path_string.to_lowercase()) {
+            continue;
+        }
+
+        let name = path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .unwrap_or("Application")
+            .to_string();
+
+        apps.push(InstalledApplication {
+            name,
+            path: path_string,
+        });
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn should_skip_windows_executable(file_name: &str) -> bool {
+    let normalized = file_name.to_lowercase();
+    let blocked_tokens = [
+        "unins",
+        "uninstall",
+        "setup",
+        "updater",
+        "update",
+        "crashpad",
+        "helper",
+        "service",
+        "elevate",
+        "notification",
+    ];
+
+    blocked_tokens
+        .iter()
+        .any(|token| normalized.contains(token))
 }
 
 fn bookmark_paths() -> Vec<(String, PathBuf)> {

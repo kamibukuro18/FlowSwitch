@@ -10,7 +10,15 @@ import {
   FileTarget,
   ConsoleTarget,
 } from "../types";
-import { selectFile, selectDirectory, getBrowserBookmarks, checkPathType, BookmarkItem } from "../hooks/useTauri";
+import {
+  selectFile,
+  selectDirectory,
+  getBrowserBookmarks,
+  getInstalledApplications,
+  checkPathType,
+  BookmarkItem,
+  InstalledApplication,
+} from "../hooks/useTauri";
 import { t, Lang } from "../i18n";
 import "./ModeEditorView.css";
 
@@ -26,6 +34,25 @@ function getPathBasename(path: string) {
   const normalized = path.trim().replace(/[\\/]+$/, "");
   if (!normalized) return "";
   return normalized.split(/[/\\]/).pop() ?? normalized;
+}
+
+function stripAppLikeExtension(value: string) {
+  return value.replace(/\.(app|exe|msi|dmg|pkg|bat|cmd|sh)$/i, "");
+}
+
+function isWindowsPath(path: string) {
+  return /^[A-Za-z]:/.test(path);
+}
+
+function applicationTargetFromInstalledApp(app: InstalledApplication): ApplicationTarget {
+  return {
+    type: "application",
+    name: app.name,
+    path: isWindowsPath(app.path)
+      ? { macos: "", windows: app.path }
+      : { macos: app.path, windows: "" },
+    args: [],
+  };
 }
 
 function getUrlHost(url: string) {
@@ -147,6 +174,9 @@ export function ModeEditorView({ store }: Props) {
   const [bookmarksLoading, setBookmarksLoading] = useState(false);
   const [bookmarkSearch, setBookmarkSearch] = useState("");
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
+  const [installedApps, setInstalledApps] = useState<InstalledApplication[]>([]);
+  const [installedAppsLoading, setInstalledAppsLoading] = useState(false);
+  const [appSearch, setAppSearch] = useState("");
 
   // New App / Dir / File / Console forms
   const [newApp, setNewApp] = useState<ApplicationTarget>({ type: "application", name: "", path: { macos: "", windows: "" }, args: [] });
@@ -219,6 +249,9 @@ export function ModeEditorView({ store }: Props) {
     }
     if (activeTab === "bookmarks") {
       setBookmarkSearch("");
+    }
+    if (activeTab === "app") {
+      setAppSearch("");
     }
     setActiveTab(null);
     setShowAddChooser(false);
@@ -506,6 +539,20 @@ export function ModeEditorView({ store }: Props) {
     }
   }
 
+  async function handleTabApps() {
+    setActiveTab("app");
+    setShowAddChooser(true);
+    setSelectedTargetIndex(null);
+    if (installedApps.length > 0 || installedAppsLoading) return;
+    setInstalledAppsLoading(true);
+    try {
+      const items = await getInstalledApplications();
+      setInstalledApps(items);
+    } finally {
+      setInstalledAppsLoading(false);
+    }
+  }
+
   function toggleBookmark(url: string) {
     setSelectedUrls((prev) => {
       const next = new Set(prev);
@@ -532,12 +579,27 @@ export function ModeEditorView({ store }: Props) {
     return !q || b.name.toLowerCase().includes(q) || b.url.toLowerCase().includes(q) || b.folder.toLowerCase().includes(q);
   });
 
+  const filteredInstalledApps = installedApps.filter((app) => {
+    const query = appSearch.trim().toLowerCase();
+    return (
+      !query ||
+      app.name.toLowerCase().includes(query) ||
+      app.path.toLowerCase().includes(query)
+    );
+  });
+
   // 笏笏 App / Dir forms 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 
   async function browseForApp(os: "macos" | "windows") {
     try {
       const file = await selectFile();
-      if (file) setNewApp((a) => ({ ...a, path: { ...a.path, [os]: file } }));
+      if (file) {
+        setNewApp((a) => ({
+          ...a,
+          name: a.name.trim() || stripAppLikeExtension(getPathBasename(file)),
+          path: { ...a.path, [os]: file },
+        }));
+      }
     } catch { /* cancelled */ }
   }
 
@@ -570,6 +632,16 @@ export function ModeEditorView({ store }: Props) {
   function handleAddApp() {
     addTargetsAndSelect([{ ...newApp }]);
     setNewApp({ type: "application", name: "", path: { macos: "", windows: "" }, args: [] });
+  }
+
+  function handleSelectInstalledApp(app: InstalledApplication) {
+    setNewApp(applicationTargetFromInstalledApp(app));
+  }
+
+  function handleQuickAddInstalledApp(app: InstalledApplication) {
+    addTargetsAndSelect([applicationTargetFromInstalledApp(app)]);
+    setNewApp({ type: "application", name: "", path: { macos: "", windows: "" }, args: [] });
+    setAppSearch("");
   }
 
   function handleAddDir() {
@@ -801,8 +873,56 @@ export function ModeEditorView({ store }: Props) {
       return (
         <div className="tab-panel">
             <div className="form-group">
+              <label>{t(lang, "app_list_label")}</label>
+              <input
+                type="text"
+                className="bookmark-search"
+                value={appSearch}
+                onChange={(e) => setAppSearch(e.target.value)}
+                placeholder={t(lang, "app_search_ph")}
+                autoFocus
+              />
+            </div>
+            {installedAppsLoading ? (
+              <div className="bookmark-loading">{t(lang, "loading")}</div>
+            ) : filteredInstalledApps.length === 0 ? (
+              <div className="bookmark-loading">
+                {installedApps.length === 0 ? t(lang, "no_apps_found") : t(lang, "no_matching_apps")}
+              </div>
+            ) : (
+              <div className="app-search-list">
+                {filteredInstalledApps.map((app) => {
+                  const isSelected =
+                    (newApp.path.macos ?? "") === app.path ||
+                    (newApp.path.windows ?? "") === app.path;
+                  return (
+                    <div
+                      key={app.path}
+                      className={`app-search-item ${isSelected ? "selected" : ""}`}
+                      onClick={() => handleSelectInstalledApp(app)}
+                    >
+                      <div className="app-search-info">
+                        <span className="bookmark-name">{app.name}</span>
+                        <span className="bookmark-meta">{app.path}</span>
+                      </div>
+                      <button
+                        className="browse-btn"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleQuickAddInstalledApp(app);
+                        }}
+                      >
+                        {t(lang, "add")}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="app-manual-divider">{t(lang, "manual_entry")}</div>
+            <div className="form-group">
               <label>{t(lang, "app_name_label")}</label>
-              <input type="text" value={newApp.name} onChange={(e) => setNewApp((a) => ({ ...a, name: e.target.value }))} placeholder="VSCode, Spotify..." autoFocus />
+              <input type="text" value={newApp.name} onChange={(e) => setNewApp((a) => ({ ...a, name: e.target.value }))} placeholder="VSCode, Spotify..." />
             </div>
             <div className="form-group">
               <label>{t(lang, "macos_path_app")}</label>
@@ -1194,7 +1314,13 @@ export function ModeEditorView({ store }: Props) {
                   <button
                     key={tab}
                     className={`add-tab-btn ${activeTab === tab ? "active" : ""}`}
-                    onClick={tab === "bookmarks" ? handleTabBookmarks : () => startAdding(tab)}
+                    onClick={
+                      tab === "bookmarks"
+                        ? handleTabBookmarks
+                        : tab === "app"
+                          ? handleTabApps
+                          : () => startAdding(tab)
+                    }
                   >
                     {tab === "paste" && t(lang, "tab_paste")}
                     {tab === "bookmarks" && t(lang, "tab_bookmarks")}
