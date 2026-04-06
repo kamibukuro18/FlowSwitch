@@ -198,17 +198,6 @@ pub fn run() {
             // ── Hide to tray on window close ──────────────────────────────────
 
             let window = app.get_webview_window("main").unwrap();
-            #[cfg(target_os = "macos")]
-            {
-                let keep_running_in_tray = {
-                    let state = app.state::<AppState>();
-                    let keep_running_in_tray = state.settings.lock().unwrap().keep_running_in_tray;
-                    keep_running_in_tray
-                };
-                if keep_running_in_tray {
-                    let _ = window.hide();
-                }
-            }
             window.on_window_event({
                 let app = app.handle().clone();
                 let window = window.clone();
