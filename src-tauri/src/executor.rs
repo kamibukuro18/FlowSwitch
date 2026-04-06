@@ -386,7 +386,7 @@ fn escape_applescript(value: &str) -> String {
 }
 
 fn expand_path(path: &str) -> String {
-    let result = if path.starts_with('~') {
+    let mut result = if path.starts_with('~') {
         if let Some(home) = dirs::home_dir() {
             path.replacen('~', &home.to_string_lossy(), 1)
         } else {

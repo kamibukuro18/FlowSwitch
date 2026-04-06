@@ -218,17 +218,16 @@ pub struct InstalledApplication {
 pub fn get_installed_applications() -> Vec<InstalledApplication> {
     #[cfg(target_os = "macos")]
     {
-        return list_macos_applications();
+        list_macos_applications()
     }
 
     #[cfg(target_os = "windows")]
     {
-        return list_windows_applications();
+        list_windows_applications()
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
-        #[cfg(not(target_os = "windows"))]
         Vec::new()
     }
 }
