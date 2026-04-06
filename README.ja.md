@@ -2,6 +2,10 @@
 
 # FlowSwitch
 
+<p align="center">
+  <img src="./docs/images/flowswitch_hero_v2.png" alt="FlowSwitch hero image" width="960" />
+</p>
+
 FlowSwitch は、ワンクリックで作業コンテキストを切り替えるための Tauri デスクトップアプリです。  
 URL、アプリ、ファイル、フォルダ、コンソールコマンドをモードとしてまとめて登録し、一括で起動できます。
 

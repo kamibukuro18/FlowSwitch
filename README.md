@@ -2,6 +2,10 @@
 
 # FlowSwitch
 
+<p align="center">
+  <img src="./docs/images/flowswitch_hero_v2.png" alt="FlowSwitch hero image" width="960" />
+</p>
+
 FlowSwitch is a Tauri desktop app for switching work context in one click.
 It groups URLs, apps, files, folders, and console commands into reusable modes and launches them together.
 
