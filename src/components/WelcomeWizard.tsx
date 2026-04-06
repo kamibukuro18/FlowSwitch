@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { open as pickOpenPath } from "@tauri-apps/plugin-dialog";
 import { getDefaultConfigPath, saveConfig, saveSettings } from "../hooks/useTauri";
 import { useAppStore } from "../store/appStore";
 import { Config } from "../types";
@@ -9,6 +10,20 @@ type Props = {
   store: ReturnType<typeof useAppStore>;
   onFinish: () => void;
 };
+
+function getDirectoryFromConfigPath(path: string) {
+  const normalized = path.trim();
+  if (!normalized) return "";
+  const separatorIndex = Math.max(normalized.lastIndexOf("/"), normalized.lastIndexOf("\\"));
+  return separatorIndex < 0 ? normalized : normalized.slice(0, separatorIndex);
+}
+
+function buildConfigPathFromDirectory(directory: string) {
+  const normalized = directory.trim().replace(/[\\/]+$/, "");
+  if (!normalized) return "config.json";
+  const separator = normalized.includes("\\") ? "\\" : "/";
+  return `${normalized}${separator}config.json`;
+}
 
 export function WelcomeWizard({ store, onFinish }: Props) {
   const { state, setSettings, setConfig, setError } = store;
@@ -28,6 +43,32 @@ export function WelcomeWizard({ store, onFinish }: Props) {
   function handleLangChange(nextLang: Lang) {
     setLang(nextLang);
     setSettings({ language: nextLang });
+  }
+
+  async function handleBrowseConfigDirectory() {
+    try {
+      const selected = await pickOpenPath({
+        title: "Select Config Folder",
+        directory: true,
+        multiple: false,
+        defaultPath: getDirectoryFromConfigPath(configPath) || undefined,
+      });
+
+      if (typeof selected === "string" && selected.trim()) {
+        setConfigPath(buildConfigPathFromDirectory(selected));
+      }
+    } catch (error) {
+      setError(`Failed to choose config folder: ${error}`);
+    }
+  }
+
+  async function handleUseDefaultPath() {
+    try {
+      const defaultPath = await getDefaultConfigPath();
+      setConfigPath(defaultPath);
+    } catch (error) {
+      setError(`Failed to get default path: ${error}`);
+    }
   }
 
   async function handleFinish(createMode: boolean) {
@@ -107,12 +148,12 @@ export function WelcomeWizard({ store, onFinish }: Props) {
                 type="text"
                 value={configPath}
                 onChange={(event) => setConfigPath(event.target.value)}
-                placeholder="/path/to/flowswitch.json"
+                placeholder="/path/to/FlowSwitch/config.json"
               />
-              <button
-                className="wizard-btn outline"
-                onClick={() => getDefaultConfigPath().then(setConfigPath).catch(() => {})}
-              >
+              <button className="wizard-btn outline" onClick={handleBrowseConfigDirectory}>
+                {t(lang, "browse")}
+              </button>
+              <button className="wizard-btn outline" onClick={handleUseDefaultPath}>
                 {t(lang, "default_btn")}
               </button>
             </div>
