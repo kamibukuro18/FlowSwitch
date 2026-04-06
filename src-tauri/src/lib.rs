@@ -22,14 +22,13 @@ pub(crate) fn apply_macos_residency(
     app: &tauri::AppHandle,
     keep_running_in_tray: bool,
 ) -> tauri::Result<()> {
-    let activation_policy = if keep_running_in_tray {
-        tauri::ActivationPolicy::Accessory
-    } else {
-        tauri::ActivationPolicy::Regular
-    };
+    let _ = keep_running_in_tray;
 
-    app.set_activation_policy(activation_policy)?;
-    app.set_dock_visibility(!keep_running_in_tray)?;
+    // Keep the Dock icon visible on macOS. This makes the app discoverable
+    // even when the main window is hidden and avoids the "app is running but
+    // has disappeared" failure mode if the status-bar icon is not obvious.
+    app.set_activation_policy(tauri::ActivationPolicy::Regular)?;
+    app.set_dock_visibility(true)?;
 
     Ok(())
 }
@@ -190,9 +189,6 @@ pub fn run() {
                     handle_tray_icon_click(tray, event);
                 });
 
-            #[cfg(target_os = "macos")]
-            let tray_builder = tray_builder.icon_as_template(true);
-
             tray_builder.build(app)?;
 
             // ── Hide to tray on window close ──────────────────────────────────
@@ -234,6 +230,12 @@ pub fn run() {
             get_installed_applications,
             update_tray_menu,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = event {
+                show_main_window(app);
+            }
+        });
 }

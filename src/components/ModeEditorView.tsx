@@ -1,5 +1,6 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { open as pickOpenPath } from "@tauri-apps/plugin-dialog";
 import { useAppStore } from "../store/appStore";
 import {
   Mode,
@@ -11,8 +12,6 @@ import {
   ConsoleTarget,
 } from "../types";
 import {
-  selectFile,
-  selectDirectory,
   getBrowserBookmarks,
   getInstalledApplications,
   checkPathType,
@@ -43,6 +42,48 @@ function stripAppLikeExtension(value: string) {
 
 function isWindowsPath(path: string) {
   return /^[A-Za-z]:/.test(path);
+}
+
+function getDialogDefaultPath(path?: string, fallback?: string) {
+  const normalized = path?.trim();
+  if (normalized) return normalized;
+  return fallback;
+}
+
+async function browsePath(
+  kind: "application" | "file" | "directory",
+  os: "macos" | "windows",
+  defaultPath?: string
+) {
+  const selected = await pickOpenPath(
+    kind === "directory"
+      ? {
+          title: "Select Folder",
+          directory: true,
+          multiple: false,
+          defaultPath,
+        }
+      : kind === "application"
+        ? {
+            title: os === "macos" ? "Select macOS App" : "Select Windows App",
+            multiple: false,
+            defaultPath,
+            filters: [
+              {
+                name: "Applications",
+                extensions:
+                  os === "macos" ? ["app"] : ["exe", "bat", "cmd", "msi", "ps1"],
+              },
+            ],
+          }
+        : {
+            title: "Select File",
+            multiple: false,
+            defaultPath,
+          }
+  );
+
+  return typeof selected === "string" && selected.trim() ? selected : null;
 }
 
 function applicationTargetFromInstalledApp(app: InstalledApplication): ApplicationTarget {
@@ -627,7 +668,11 @@ export function ModeEditorView({ store }: Props) {
 
   async function browseForApp(os: "macos" | "windows") {
     try {
-      const file = await selectFile();
+      const file = await browsePath(
+        "application",
+        os,
+        getDialogDefaultPath(newApp.path[os], os === "macos" ? "/Applications" : undefined)
+      );
       if (file) {
         setNewApp((a) => ({
           ...a,
@@ -640,21 +685,25 @@ export function ModeEditorView({ store }: Props) {
 
   async function browseForFile(os: "macos" | "windows") {
     try {
-      const file = await selectFile();
+      const file = await browsePath("file", os, getDialogDefaultPath(newFile.path[os]));
       if (file) setNewFile((f) => ({ ...f, path: { ...f.path, [os]: file } }));
     } catch { /* cancelled */ }
   }
 
   async function browseForDir(os: "macos" | "windows") {
     try {
-      const dir = await selectDirectory();
+      const dir = await browsePath("directory", os, getDialogDefaultPath(newDir.path[os]));
       if (dir) setNewDir((d) => ({ ...d, path: { ...d.path, [os]: dir } }));
     } catch { /* cancelled */ }
   }
 
   async function browseForConsoleDir(os: "macos" | "windows") {
     try {
-      const dir = await selectDirectory();
+      const dir = await browsePath(
+        "directory",
+        os,
+        getDialogDefaultPath(newConsole.workingDir?.[os])
+      );
       if (dir) {
         setNewConsole((c) => ({
           ...c,
@@ -1467,7 +1516,7 @@ function UrlTargetEditor({ target, lang, onChange }: { target: UrlTarget; lang: 
 function DirectoryTargetEditor({ target, lang, onChange }: { target: DirectoryTarget; lang: Lang; onChange: (p: Partial<DirectoryTarget>) => void }) {
   async function browse(os: "macos" | "windows") {
     try {
-      const dir = await selectDirectory();
+      const dir = await browsePath("directory", os, getDialogDefaultPath(target.path[os]));
       if (dir) onChange({ path: { ...target.path, [os]: dir } });
     } catch { /* cancelled */ }
   }
@@ -1498,8 +1547,17 @@ function DirectoryTargetEditor({ target, lang, onChange }: { target: DirectoryTa
 function AppTargetEditor({ target, lang, onChange }: { target: ApplicationTarget; lang: Lang; onChange: (p: Partial<ApplicationTarget>) => void }) {
   async function browse(os: "macos" | "windows") {
     try {
-      const file = await selectFile();
-      if (file) onChange({ path: { ...target.path, [os]: file } });
+      const file = await browsePath(
+        "application",
+        os,
+        getDialogDefaultPath(target.path[os], os === "macos" ? "/Applications" : undefined)
+      );
+      if (file) {
+        onChange({
+          name: target.name.trim() || stripAppLikeExtension(getPathBasename(file)),
+          path: { ...target.path, [os]: file },
+        });
+      }
     } catch { /* cancelled */ }
   }
   return (
@@ -1533,7 +1591,7 @@ function AppTargetEditor({ target, lang, onChange }: { target: ApplicationTarget
 function FileTargetEditor({ target, lang, onChange }: { target: FileTarget; lang: Lang; onChange: (p: Partial<FileTarget>) => void }) {
   async function browse(os: "macos" | "windows") {
     try {
-      const file = await selectFile();
+      const file = await browsePath("file", os, getDialogDefaultPath(target.path[os]));
       if (file) onChange({ path: { ...target.path, [os]: file } });
     } catch { /* cancelled */ }
   }
@@ -1568,7 +1626,11 @@ function FileTargetEditor({ target, lang, onChange }: { target: FileTarget; lang
 function ConsoleTargetEditor({ target, lang, onChange }: { target: ConsoleTarget; lang: Lang; onChange: (p: Partial<ConsoleTarget>) => void }) {
   async function browse(os: "macos" | "windows") {
     try {
-      const dir = await selectDirectory();
+      const dir = await browsePath(
+        "directory",
+        os,
+        getDialogDefaultPath(target.workingDir?.[os])
+      );
       if (dir) onChange({ workingDir: { ...(target.workingDir ?? {}), [os]: dir } });
     } catch { /* cancelled */ }
   }
