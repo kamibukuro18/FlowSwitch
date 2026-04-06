@@ -107,17 +107,15 @@ fn handle_tray_icon_click(tray: &tauri::tray::TrayIcon, event: TrayIconEvent) {
 }
 
 #[cfg(target_os = "macos")]
-fn apply_macos_tray_visibility_hint(
+fn apply_macos_tray_appearance(
     tray_builder: TrayIconBuilder<tauri::Wry>,
 ) -> TrayIconBuilder<tauri::Wry> {
-    // macOS status items often disappear visually when using a regular app icon.
-    // A short title guarantees the menu-bar item is still visible even if the
-    // icon itself renders poorly.
-    tray_builder.title("FS")
+    let menu_icon = tauri::include_image!("./icons/menuicon.png");
+    tray_builder.icon(menu_icon).icon_as_template(true)
 }
 
 #[cfg(not(target_os = "macos"))]
-fn apply_macos_tray_visibility_hint(
+fn apply_macos_tray_appearance(
     tray_builder: TrayIconBuilder<tauri::Wry>,
 ) -> TrayIconBuilder<tauri::Wry> {
     tray_builder
@@ -206,7 +204,7 @@ pub fn run() {
                     handle_tray_icon_click(tray, event);
                 });
 
-            let tray_builder = apply_macos_tray_visibility_hint(tray_builder);
+            let tray_builder = apply_macos_tray_appearance(tray_builder);
             tray_builder.build(app)?;
 
             // ── Hide to tray on window close ──────────────────────────────────
