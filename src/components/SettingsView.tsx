@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { save as pickSavePath } from "@tauri-apps/plugin-dialog";
 import { getDefaultConfigPath, loadConfig, saveSettings } from "../hooks/useTauri";
 import { useAppStore } from "../store/appStore";
 import { t, Lang } from "../i18n";
@@ -87,6 +88,27 @@ export function SettingsView({ store }: Props) {
     }
   }
 
+  async function handleBrowseConfigPath() {
+    try {
+      const selected = await pickSavePath({
+        title: "Select Config File",
+        defaultPath: configPath || (await getDefaultConfigPath()),
+        filters: [
+          {
+            name: "JSON",
+            extensions: ["json"],
+          },
+        ],
+      });
+
+      if (selected) {
+        setConfigPath(selected);
+      }
+    } catch (error) {
+      setError(`Failed to choose config file path: ${error}`);
+    }
+  }
+
   return (
     <div className="settings-view">
       <div className="view-header">
@@ -105,6 +127,9 @@ export function SettingsView({ store }: Props) {
               onChange={(event) => setConfigPath(event.target.value)}
               placeholder="/path/to/flowswitch.json"
             />
+            <button className="btn-outline" onClick={handleBrowseConfigPath}>
+              {t(lang, "browse")}
+            </button>
             <button className="btn-outline" onClick={handleUseDefault}>
               {t(lang, "default_btn")}
             </button>
