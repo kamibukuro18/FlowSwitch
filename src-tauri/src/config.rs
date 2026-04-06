@@ -21,10 +21,7 @@ pub enum Target {
         label: Option<String>,
     },
     #[serde(rename = "directory")]
-    Directory {
-        path: OsPath,
-        label: Option<String>,
-    },
+    Directory { path: OsPath, label: Option<String> },
     #[serde(rename = "application")]
     Application {
         name: String,

@@ -8,7 +8,8 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
 fn settings_path(app: &AppHandle) -> PathBuf {
-    app.path().app_config_dir()
+    app.path()
+        .app_config_dir()
         .unwrap_or_else(|_| dirs::config_dir().unwrap_or_else(|| PathBuf::from(".")))
         .join("settings.json")
 }
@@ -29,8 +30,7 @@ pub fn load_config(file_path: String) -> Result<Config, String> {
     let path = expand_home(&file_path);
     let content = fs::read_to_string(&path)
         .map_err(|e| format!("Cannot read config file '{}': {}", path, e))?;
-    serde_json::from_str::<Config>(&content)
-        .map_err(|e| format!("Invalid config JSON: {}", e))
+    serde_json::from_str::<Config>(&content).map_err(|e| format!("Invalid config JSON: {}", e))
 }
 
 #[tauri::command]
@@ -38,13 +38,11 @@ pub fn save_config(file_path: String, config: Config) -> Result<(), String> {
     let path = expand_home(&file_path);
     // Create parent directories if needed
     if let Some(parent) = std::path::Path::new(&path).parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create directories: {}", e))?;
+        fs::create_dir_all(parent).map_err(|e| format!("Failed to create directories: {}", e))?;
     }
     let content = serde_json::to_string_pretty(&config)
         .map_err(|e| format!("Failed to serialize config: {}", e))?;
-    fs::write(&path, content)
-        .map_err(|e| format!("Failed to write config file: {}", e))
+    fs::write(&path, content).map_err(|e| format!("Failed to write config file: {}", e))
 }
 
 #[tauri::command]
@@ -65,6 +63,7 @@ pub fn load_settings(app: AppHandle) -> Result<AppSettings, String> {
 
 #[tauri::command]
 pub fn save_settings(app: AppHandle, settings: AppSettings) -> Result<(), String> {
+    let keep_running_in_tray = settings.keep_running_in_tray;
     let path = settings_path(&app);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
@@ -72,18 +71,20 @@ pub fn save_settings(app: AppHandle, settings: AppSettings) -> Result<(), String
     }
     let content = serde_json::to_string_pretty(&settings)
         .map_err(|e| format!("Failed to serialize settings: {}", e))?;
-    fs::write(&path, content)
-        .map_err(|e| format!("Failed to write settings: {}", e))?;
+    fs::write(&path, content).map_err(|e| format!("Failed to write settings: {}", e))?;
 
     let state = app.state::<crate::AppState>();
     *state.settings.lock().unwrap() = settings;
+    crate::apply_macos_residency(&app, keep_running_in_tray).map_err(|e| e.to_string())?;
 
     Ok(())
 }
 
 #[tauri::command]
 pub fn get_default_config_path(app: AppHandle) -> Result<String, String> {
-    let path = app.path().document_dir()
+    let path = app
+        .path()
+        .document_dir()
         .unwrap_or_else(|_| dirs::document_dir().unwrap_or_else(|| PathBuf::from(".")))
         .join("FlowSwitch")
         .join("config.json");
@@ -101,8 +102,15 @@ pub fn check_path_type(path: String) -> String {
         }
         return "dir".into();
     }
-    let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-    if matches!(ext.as_str(), "exe" | "msi" | "dmg" | "pkg" | "sh" | "bat" | "cmd") {
+    let ext = p
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if matches!(
+        ext.as_str(),
+        "exe" | "msi" | "dmg" | "pkg" | "sh" | "bat" | "cmd"
+    ) {
         return "app".into();
     }
     "file".into()
@@ -146,7 +154,8 @@ pub fn get_browser_tabs() -> Result<Vec<String>, String> {
             if let Some(body_start) = response.find("\r\n\r\n") {
                 let body = &response[body_start + 4..];
                 if let Ok(tabs) = serde_json::from_str::<Vec<serde_json::Value>>(body) {
-                    let urls: Vec<String> = tabs.iter()
+                    let urls: Vec<String> = tabs
+                        .iter()
                         .filter_map(|t| t["url"].as_str())
                         .filter(|u| u.starts_with("http"))
                         .map(String::from)
@@ -173,10 +182,18 @@ pub struct BookmarkItem {
 pub fn get_browser_bookmarks() -> Vec<BookmarkItem> {
     let mut result = Vec::new();
     for (browser, path) in bookmark_paths() {
-        if !path.exists() { continue; }
-        let Ok(content) = fs::read_to_string(&path) else { continue };
-        let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) else { continue };
-        let Some(roots) = json.get("roots") else { continue };
+        if !path.exists() {
+            continue;
+        }
+        let Ok(content) = fs::read_to_string(&path) else {
+            continue;
+        };
+        let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) else {
+            continue;
+        };
+        let Some(roots) = json.get("roots") else {
+            continue;
+        };
         for root in &["bookmark_bar", "other", "synced"] {
             if let Some(node) = roots.get(root) {
                 collect_bookmarks(node, &browser, "", &mut result);
@@ -191,32 +208,66 @@ fn bookmark_paths() -> Vec<(String, PathBuf)> {
     #[cfg(target_os = "windows")]
     if let Ok(local) = std::env::var("LOCALAPPDATA") {
         let base = PathBuf::from(&local);
-        paths.push(("Chrome".into(), base.join("Google/Chrome/User Data/Default/Bookmarks")));
-        paths.push(("Edge".into(),   base.join("Microsoft/Edge/User Data/Default/Bookmarks")));
-        paths.push(("Brave".into(),  base.join("BraveSoftware/Brave-Browser/User Data/Default/Bookmarks")));
+        paths.push((
+            "Chrome".into(),
+            base.join("Google/Chrome/User Data/Default/Bookmarks"),
+        ));
+        paths.push((
+            "Edge".into(),
+            base.join("Microsoft/Edge/User Data/Default/Bookmarks"),
+        ));
+        paths.push((
+            "Brave".into(),
+            base.join("BraveSoftware/Brave-Browser/User Data/Default/Bookmarks"),
+        ));
     }
     #[cfg(target_os = "macos")]
     if let Some(home) = dirs::home_dir() {
         let lib = home.join("Library/Application Support");
         paths.push(("Chrome".into(), lib.join("Google/Chrome/Default/Bookmarks")));
-        paths.push(("Edge".into(),   lib.join("Microsoft Edge/Default/Bookmarks")));
-        paths.push(("Brave".into(),  lib.join("BraveSoftware/Brave-Browser/Default/Bookmarks")));
+        paths.push(("Edge".into(), lib.join("Microsoft Edge/Default/Bookmarks")));
+        paths.push((
+            "Brave".into(),
+            lib.join("BraveSoftware/Brave-Browser/Default/Bookmarks"),
+        ));
     }
     paths
 }
 
-fn collect_bookmarks(node: &serde_json::Value, browser: &str, folder: &str, out: &mut Vec<BookmarkItem>) {
+fn collect_bookmarks(
+    node: &serde_json::Value,
+    browser: &str,
+    folder: &str,
+    out: &mut Vec<BookmarkItem>,
+) {
     match node.get("type").and_then(|t| t.as_str()) {
         Some("url") => {
-            let name = node.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let url  = node.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let name = node
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let url = node
+                .get("url")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             if url.starts_with("http") {
-                out.push(BookmarkItem { browser: browser.into(), folder: folder.into(), name, url });
+                out.push(BookmarkItem {
+                    browser: browser.into(),
+                    folder: folder.into(),
+                    name,
+                    url,
+                });
             }
         }
         Some("folder") => {
             let fname = node.get("name").and_then(|v| v.as_str()).unwrap_or("");
-            let next_folder = if folder.is_empty() { fname.to_string() } else { format!("{} / {}", folder, fname) };
+            let next_folder = if folder.is_empty() {
+                fname.to_string()
+            } else {
+                format!("{} / {}", folder, fname)
+            };
             if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
                 for child in children {
                     collect_bookmarks(child, browser, &next_folder, out);
@@ -237,8 +288,7 @@ pub fn update_tray_menu(app: AppHandle, config: Config) -> Result<(), String> {
         *state.config.lock().unwrap() = Some(config.clone());
     }
     // Rebuild and apply the tray menu
-    let menu = crate::build_tray_menu(&app, &config.modes)
-        .map_err(|e| e.to_string())?;
+    let menu = crate::build_tray_menu(&app, &config.modes).map_err(|e| e.to_string())?;
     if let Some(tray) = app.tray_by_id("main") {
         tray.set_menu(Some(menu)).map_err(|e| e.to_string())?;
     }

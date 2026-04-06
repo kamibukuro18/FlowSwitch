@@ -105,13 +105,15 @@ pub mod win {
 
     #[repr(C)]
     struct DropTargetVtbl {
-        query_interface: unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> i32,
-        add_ref:         unsafe extern "system" fn(*mut c_void) -> u32,
-        release:         unsafe extern "system" fn(*mut c_void) -> u32,
-        drag_enter: unsafe extern "system" fn(*mut c_void, *mut c_void, u32, POINTL, *mut u32) -> i32,
-        drag_over:  unsafe extern "system" fn(*mut c_void, u32, POINTL, *mut u32) -> i32,
-        drag_leave:      unsafe extern "system" fn(*mut c_void) -> i32,
-        drop:       unsafe extern "system" fn(*mut c_void, *mut c_void, u32, POINTL, *mut u32) -> i32,
+        query_interface:
+            unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> i32,
+        add_ref: unsafe extern "system" fn(*mut c_void) -> u32,
+        release: unsafe extern "system" fn(*mut c_void) -> u32,
+        drag_enter:
+            unsafe extern "system" fn(*mut c_void, *mut c_void, u32, POINTL, *mut u32) -> i32,
+        drag_over: unsafe extern "system" fn(*mut c_void, u32, POINTL, *mut u32) -> i32,
+        drag_leave: unsafe extern "system" fn(*mut c_void) -> i32,
+        drop: unsafe extern "system" fn(*mut c_void, *mut c_void, u32, POINTL, *mut u32) -> i32,
     }
 
     // ── COM object ────────────────────────────────────────────────────────────
@@ -119,9 +121,9 @@ pub mod win {
     // vtbl MUST be the first field — this is the COM object layout.
     #[repr(C)]
     struct DropTarget {
-        vtbl:      *const DropTargetVtbl,
+        vtbl: *const DropTargetVtbl,
         ref_count: AtomicU32,
-        app:       ManuallyDrop<AppHandle>,
+        app: ManuallyDrop<AppHandle>,
     }
 
     // Raw pointers prevent auto-Send/Sync, but our usage is single-threaded
@@ -134,7 +136,7 @@ pub mod win {
     unsafe extern "system" fn dt_query_interface(
         this: *mut c_void,
         riid: *const GUID,
-        ppv:  *mut *mut c_void,
+        ppv: *mut *mut c_void,
     ) -> i32 {
         let id = &*riid;
         if guids_equal(id, &IID_IUNKNOWN) || guids_equal(id, &IID_IDROPTARGET) {
@@ -209,7 +211,7 @@ pub mod win {
         }
         let obj = &*(this as *const DropTarget);
         let paths = read_file_paths(p_data_obj);
-        let url   = read_url_text(p_data_obj);
+        let url = read_url_text(p_data_obj);
         let _ = obj.app.emit(
             "app-drop",
             serde_json::json!({ "paths": paths, "url": url }),
@@ -218,36 +220,30 @@ pub mod win {
     }
 
     fn guids_equal(a: &GUID, b: &GUID) -> bool {
-        a.data1 == b.data1
-            && a.data2 == b.data2
-            && a.data3 == b.data3
-            && a.data4 == b.data4
+        a.data1 == b.data1 && a.data2 == b.data2 && a.data3 == b.data3 && a.data4 == b.data4
     }
 
     // Static vtable — COM holds a *const pointer to this.
     static VTABLE: DropTargetVtbl = DropTargetVtbl {
         query_interface: dt_query_interface,
-        add_ref:         dt_add_ref,
-        release:         dt_release,
-        drag_enter:      dt_drag_enter,
-        drag_over:       dt_drag_over,
-        drag_leave:      dt_drag_leave,
-        drop:            dt_drop,
+        add_ref: dt_add_ref,
+        release: dt_release,
+        drag_enter: dt_drag_enter,
+        drag_over: dt_drag_over,
+        drag_leave: dt_drag_leave,
+        drop: dt_drop,
     };
 
     // ── IDataObject raw vtable dispatch ───────────────────────────────────────
 
     // IDataObject::GetData is at vtable slot 3 (after QI, AddRef, Release).
     unsafe fn idata_get_data(
-        data:   *mut c_void,
-        fmt:    *const FORMATETC,
+        data: *mut c_void,
+        fmt: *const FORMATETC,
         medium: *mut STGMEDIUM,
     ) -> i32 {
-        type GetDataFn = unsafe extern "system" fn(
-            *mut c_void,
-            *const FORMATETC,
-            *mut STGMEDIUM,
-        ) -> i32;
+        type GetDataFn =
+            unsafe extern "system" fn(*mut c_void, *const FORMATETC, *mut STGMEDIUM) -> i32;
         let vtbl: *const *const usize = *(data as *const *const *const usize);
         let fn_ptr = *vtbl.add(3);
         let get_data: GetDataFn = std::mem::transmute(fn_ptr);
@@ -276,8 +272,7 @@ pub mod win {
         let mut paths = Vec::with_capacity(count as usize);
 
         for i in 0..count {
-            let len =
-                DragQueryFileW(hdrop, i, std::ptr::null_mut(), 0) as usize + 1;
+            let len = DragQueryFileW(hdrop, i, std::ptr::null_mut(), 0) as usize + 1;
             let mut buf = vec![0u16; len];
             DragQueryFileW(hdrop, i, buf.as_mut_ptr(), len as u32);
             buf.truncate(len.saturating_sub(1));
@@ -313,13 +308,17 @@ pub mod win {
         GlobalUnlock(hglobal);
 
         let text = text.trim().to_owned();
-        if text.starts_with("http") { Some(text) } else { None }
+        if text.starts_with("http") {
+            Some(text)
+        } else {
+            None
+        }
     }
 
     // ── HWND helpers ──────────────────────────────────────────────────────────
 
     struct Finder {
-        class:  &'static str,
+        class: &'static str,
         result: isize,
     }
 
@@ -329,8 +328,7 @@ pub mod win {
         unsafe extern "system" fn cb(hwnd: HWND, lparam: LPARAM) -> BOOL {
             let f = &mut *(lparam as *mut Finder);
             let mut buf = [0u16; 256];
-            let len =
-                GetClassNameW(hwnd, buf.as_mut_ptr(), buf.len() as i32) as usize;
+            let len = GetClassNameW(hwnd, buf.as_mut_ptr(), buf.len() as i32) as usize;
             let name = String::from_utf16_lossy(&buf[..len]);
             if name == f.class {
                 f.result = hwnd;
@@ -341,7 +339,11 @@ pub mod win {
         }
 
         EnumChildWindows(parent, Some(cb), &mut f as *mut Finder as LPARAM);
-        if f.result == 0 { None } else { Some(f.result) }
+        if f.result == 0 {
+            None
+        } else {
+            Some(f.result)
+        }
     }
 
     // ── Public entry point ────────────────────────────────────────────────────
@@ -354,17 +356,16 @@ pub mod win {
         OleInitialize(std::ptr::null());
 
         let parent: HWND = hwnd_raw;
-        let hwnd = find_child_hwnd(parent, "Chrome_RenderWidgetHostHWND")
-            .unwrap_or(parent);
+        let hwnd = find_child_hwnd(parent, "Chrome_RenderWidgetHostHWND").unwrap_or(parent);
 
         // Remove WebView2's own IDropTarget.
         let _ = RevokeDragDrop(hwnd);
 
         // Allocate our COM object with an initial ref-count of 1.
         let target = Box::new(DropTarget {
-            vtbl:      &VTABLE as *const DropTargetVtbl,
+            vtbl: &VTABLE as *const DropTargetVtbl,
             ref_count: AtomicU32::new(1),
-            app:       ManuallyDrop::new(app.clone()),
+            app: ManuallyDrop::new(app.clone()),
         });
         let raw = Box::into_raw(target);
 

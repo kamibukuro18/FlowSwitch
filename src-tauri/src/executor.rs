@@ -36,13 +36,28 @@ pub fn execute_mode(mode: &Mode) -> ModeExecutionResult {
 fn close_browsers() {
     #[cfg(target_os = "windows")]
     {
-        for process in &["chrome.exe", "msedge.exe", "firefox.exe", "opera.exe", "brave.exe"] {
-            let _ = Command::new("taskkill").args(["/F", "/IM", process]).output();
+        for process in &[
+            "chrome.exe",
+            "msedge.exe",
+            "firefox.exe",
+            "opera.exe",
+            "brave.exe",
+        ] {
+            let _ = Command::new("taskkill")
+                .args(["/F", "/IM", process])
+                .output();
         }
     }
     #[cfg(target_os = "macos")]
     {
-        for app in &["Google Chrome", "Microsoft Edge", "Firefox", "Opera", "Brave Browser", "Safari"] {
+        for app in &[
+            "Google Chrome",
+            "Microsoft Edge",
+            "Firefox",
+            "Opera",
+            "Brave Browser",
+            "Safari",
+        ] {
             let _ = Command::new("pkill").args(["-x", app]).output();
         }
     }
@@ -91,7 +106,8 @@ fn close_directories() {
     #[cfg(target_os = "windows")]
     {
         // Close Explorer folder windows without killing the shell.
-        let script = "(New-Object -comobject shell.application).windows() | ForEach-Object { $_.quit() }";
+        let script =
+            "(New-Object -comobject shell.application).windows() | ForEach-Object { $_.quit() }";
         let _ = Command::new("powershell")
             .args(["-NoProfile", "-NonInteractive", "-Command", script])
             .output();

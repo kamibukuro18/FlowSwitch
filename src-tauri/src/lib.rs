@@ -6,7 +6,7 @@ mod executor;
 use commands::*;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
-    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    tray::{TrayIconBuilder, TrayIconEvent},
     Emitter, Manager,
 };
 
@@ -15,6 +15,31 @@ use tauri::{
 pub(crate) struct AppState {
     pub config: std::sync::Mutex<Option<config::Config>>,
     pub settings: std::sync::Mutex<config::AppSettings>,
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn apply_macos_residency(
+    app: &tauri::AppHandle,
+    keep_running_in_tray: bool,
+) -> tauri::Result<()> {
+    let activation_policy = if keep_running_in_tray {
+        tauri::ActivationPolicy::Accessory
+    } else {
+        tauri::ActivationPolicy::Regular
+    };
+
+    app.set_activation_policy(activation_policy)?;
+    app.set_dock_visibility(!keep_running_in_tray)?;
+
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn apply_macos_residency(
+    _app: &tauri::AppHandle,
+    _keep_running_in_tray: bool,
+) -> tauri::Result<()> {
+    Ok(())
 }
 
 // ── Tray menu builder ─────────────────────────────────────────────────────────
@@ -57,6 +82,31 @@ fn show_main_window(app: &tauri::AppHandle) {
     }
 }
 
+#[cfg(target_os = "macos")]
+fn should_show_tray_menu_on_left_click() -> bool {
+    true
+}
+
+#[cfg(not(target_os = "macos"))]
+fn should_show_tray_menu_on_left_click() -> bool {
+    false
+}
+
+#[cfg(target_os = "macos")]
+fn handle_tray_icon_click(_tray: &tauri::tray::TrayIcon, _event: TrayIconEvent) {}
+
+#[cfg(not(target_os = "macos"))]
+fn handle_tray_icon_click(tray: &tauri::tray::TrayIcon, event: TrayIconEvent) {
+    if let TrayIconEvent::Click {
+        button: tauri::tray::MouseButton::Left,
+        button_state: tauri::tray::MouseButtonState::Up,
+        ..
+    } = event
+    {
+        show_main_window(tray.app_handle());
+    }
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -70,6 +120,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(move |app| {
             let initial_settings = persisted_settings(app.handle());
+            apply_macos_residency(app.handle(), initial_settings.keep_running_in_tray)?;
             app.manage(AppState {
                 config: std::sync::Mutex::new(None),
                 settings: std::sync::Mutex::new(initial_settings),
@@ -104,14 +155,14 @@ pub fn run() {
 
             // ── System tray ───────────────────────────────────────────────────
 
-            let initial_menu = build_tray_menu(app.handle(), &[])
-                .expect("failed to build initial tray menu");
+            let initial_menu =
+                build_tray_menu(app.handle(), &[]).expect("failed to build initial tray menu");
 
-            TrayIconBuilder::with_id("main")
+            let tray_builder = TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().cloned().expect("no window icon"))
                 .tooltip("FlowSwitch")
                 .menu(&initial_menu)
-                .show_menu_on_left_click(false)
+                .show_menu_on_left_click(should_show_tray_menu_on_left_click())
                 .on_menu_event(|app: &tauri::AppHandle, event: tauri::menu::MenuEvent| {
                     match event.id().as_ref() {
                         "show" => show_main_window(app),
@@ -123,10 +174,9 @@ pub fn run() {
                                 let result = {
                                     let state = app.state::<AppState>();
                                     let guard = state.config.lock().unwrap();
-                                    guard.as_ref()
-                                        .and_then(|cfg| {
-                                            cfg.modes.iter().find(|m| m.id == mode_id)
-                                        })
+                                    guard
+                                        .as_ref()
+                                        .and_then(|cfg| cfg.modes.iter().find(|m| m.id == mode_id))
                                         .map(executor::execute_mode)
                                 };
                                 if let Some(r) = result {
@@ -137,20 +187,28 @@ pub fn run() {
                     }
                 })
                 .on_tray_icon_event(|tray: &tauri::tray::TrayIcon, event: TrayIconEvent| {
-                    if let TrayIconEvent::Click {
-                        button: MouseButton::Left,
-                        button_state: MouseButtonState::Up,
-                        ..
-                    } = event
-                    {
-                        show_main_window(tray.app_handle());
-                    }
-                })
-                .build(app)?;
+                    handle_tray_icon_click(tray, event);
+                });
+
+            #[cfg(target_os = "macos")]
+            let tray_builder = tray_builder.icon_as_template(true);
+
+            tray_builder.build(app)?;
 
             // ── Hide to tray on window close ──────────────────────────────────
 
             let window = app.get_webview_window("main").unwrap();
+            #[cfg(target_os = "macos")]
+            {
+                let keep_running_in_tray = {
+                    let state = app.state::<AppState>();
+                    let keep_running_in_tray = state.settings.lock().unwrap().keep_running_in_tray;
+                    keep_running_in_tray
+                };
+                if keep_running_in_tray {
+                    let _ = window.hide();
+                }
+            }
             window.on_window_event({
                 let app = app.handle().clone();
                 let window = window.clone();
