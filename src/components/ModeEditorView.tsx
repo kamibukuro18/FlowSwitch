@@ -16,6 +16,7 @@ import {
   getBrowserBookmarks,
   getInstalledApplications,
   checkPathType,
+  executeMode,
   BookmarkItem,
   InstalledApplication,
 } from "../hooks/useTauri";
@@ -150,7 +151,7 @@ function TargetRowIcon({ target }: { target: Target }) {
 }
 
 export function ModeEditorView({ store }: Props) {
-  const { state, saveMode, navigateTo, showToast } = store;
+  const { state, saveMode, navigateTo, showToast, setError } = store;
   const lang = (state.settings.language ?? "en") as Lang;
   const initialMode = state.editingMode!;
 
@@ -165,6 +166,7 @@ export function ModeEditorView({ store }: Props) {
   const [editingTargetIndex, setEditingTargetIndex] = useState<number | null>(null);
   const [draggingTargetIndex, setDraggingTargetIndex] = useState<number | null>(null);
   const [dragInsertIndex, setDragInsertIndex] = useState<number | null>(null);
+  const [openingTargetIndex, setOpeningTargetIndex] = useState<number | null>(null);
 
   // Paste URLs
   const [pasteText, setPasteText] = useState("");
@@ -310,7 +312,7 @@ export function ModeEditorView({ store }: Props) {
   function handleTargetPointerDown(event: React.PointerEvent, index: number) {
     if (event.button !== 0) return;
     const target = event.target as HTMLElement;
-    if (target.closest(".target-summary-edit-btn")) return;
+    if (target.closest(".target-summary-action-btn")) return;
     pendingPointerDragRef.current = {
       index,
       pointerId: event.pointerId,
@@ -329,6 +331,39 @@ export function ModeEditorView({ store }: Props) {
   function handleSave() {
     if (!validate()) return;
     saveMode(mode);
+  }
+
+  async function handleOpenTarget(index: number) {
+    const target = mode.targets[index];
+    if (!target) return;
+
+    setOpeningTargetIndex(index);
+    try {
+      const tempModeId = `${mode.id}:target:${index}`;
+      const result = await executeMode(tempModeId, {
+        version: state.config?.version ?? 1,
+        configDir: state.config?.configDir,
+        modes: [
+          {
+            ...mode,
+            id: tempModeId,
+            closeOthersOnLaunch: false,
+            closeAppsOnLaunch: false,
+            closeDirectoriesOnLaunch: false,
+            targets: [target],
+          },
+        ],
+      });
+
+      const failure = result.results.find((item) => !item.success);
+      if (failure?.error) {
+        setError(failure.error);
+      }
+    } catch (error) {
+      setError(`Failed to open target: ${error}`);
+    } finally {
+      setOpeningTargetIndex(null);
+    }
   }
 
   useEffect(() => {
@@ -1228,7 +1263,25 @@ export function ModeEditorView({ store }: Props) {
                     <span className="target-summary-main">{getTargetSummaryText(target)}</span>
                     <span className="target-summary-actions">
                       <span
-                        className="target-summary-edit-btn"
+                        className="target-summary-open-btn target-summary-action-btn"
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleOpenTarget(index);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            void handleOpenTarget(index);
+                          }
+                        }}
+                      >
+                        {openingTargetIndex === index ? "..." : t(lang, "open")}
+                      </span>
+                      <span
+                        className="target-summary-edit-btn target-summary-action-btn"
                         role="button"
                         tabIndex={0}
                         onClick={(e) => {
@@ -1246,7 +1299,7 @@ export function ModeEditorView({ store }: Props) {
                         Edit
                       </span>
                       <span
-                        className="target-summary-delete-btn"
+                        className="target-summary-delete-btn target-summary-action-btn"
                         role="button"
                         tabIndex={0}
                         aria-label="Delete target"
@@ -1292,7 +1345,9 @@ export function ModeEditorView({ store }: Props) {
               index={editingTargetIndex}
               total={mode.targets.length}
               lang={lang}
+              isOpening={openingTargetIndex === editingTargetIndex}
               onChange={(patch) => updateTarget(editingTargetIndex, patch)}
+              onOpen={() => void handleOpenTarget(editingTargetIndex)}
               onRemove={() => removeTarget(editingTargetIndex)}
             />
           </div>
@@ -1360,11 +1415,13 @@ type TargetEditorProps = {
   index: number;
   total: number;
   lang: Lang;
+  isOpening: boolean;
   onChange: (patch: Partial<Target>) => void;
+  onOpen: () => void;
   onRemove: () => void;
 };
 
-function TargetEditor({ target, lang, onChange, onRemove }: TargetEditorProps) {
+function TargetEditor({ target, lang, isOpening, onChange, onOpen, onRemove }: TargetEditorProps) {
   const typeLabel = {
     url: t(lang, "type_url"),
     directory: t(lang, "type_dir"),
@@ -1377,6 +1434,9 @@ function TargetEditor({ target, lang, onChange, onRemove }: TargetEditorProps) {
       <div className="target-editor-header">
         <span className="target-type-badge">{typeLabel[target.type]}</span>
         <div className="target-actions">
+          <button className="target-action-btn open" onClick={onOpen}>
+            {isOpening ? "..." : t(lang, "open")}
+          </button>
           <button className="target-action-btn remove" onClick={onRemove}>Delete</button>
         </div>
       </div>

@@ -39,6 +39,7 @@ const dict = {
     ja: "URLを貼り付けてください（1行に1つ）\nhttps://github.com\nhttps://notion.so",
   },
   add: { en: "Add", ja: "追加" },
+  open: { en: "Open", ja: "開く" },
   cancel: { en: "Cancel", ja: "キャンセル" },
   close: { en: "Close", ja: "閉じる" },
   bookmark_search_ph: { en: "Search bookmarks...", ja: "ブックマークを検索..." },
