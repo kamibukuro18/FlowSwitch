@@ -101,3 +101,25 @@ npm run tauri build
 ```
 
 Build artifacts are generated under `src-tauri/target/release/bundle/`.
+
+## Signed macOS Release
+
+Unsigned macOS bundles are commonly blocked by Gatekeeper with a broken or damaged warning after download.
+For GitHub releases, build macOS artifacts with a `Developer ID Application` certificate and notarization.
+
+### Required GitHub secrets
+
+- `APPLE_CERTIFICATE`: base64-encoded `.p12` export of the `Developer ID Application` certificate
+- `APPLE_CERTIFICATE_PASSWORD`: password used when exporting the `.p12`
+- `APPLE_SIGNING_IDENTITY`: exact signing identity name, for example `Developer ID Application: Your Name (TEAMID)`
+- `APPLE_API_KEY`: App Store Connect API key ID
+- `APPLE_API_ISSUER`: App Store Connect issuer ID
+- `APPLE_API_KEY_CONTENT`: contents of `AuthKey_<KEYID>.p8`
+
+### Publish macOS assets to an existing release
+
+1. Add the required secrets in GitHub repository settings.
+2. Open the `release-macos` workflow in GitHub Actions.
+3. Run it with the existing tag such as `v0.1.0`.
+
+The workflow signs, notarizes, and uploads macOS release assets to the target GitHub release.
