@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
-import { open as pickOpenPath } from "@tauri-apps/plugin-dialog";
-import { getDefaultConfigPath, saveConfig, saveSettings } from "../hooks/useTauri";
+import { ask, confirm, open as pickOpenPath } from "@tauri-apps/plugin-dialog";
+import {
+  getDefaultConfigPath,
+  loadConfig,
+  pathExists,
+  saveConfig,
+  saveSettings,
+} from "../hooks/useTauri";
 import { useAppStore } from "../store/appStore";
 import { Config } from "../types";
 import { t, Lang } from "../i18n";
@@ -23,6 +29,36 @@ function buildConfigPathFromDirectory(directory: string) {
   if (!normalized) return "config.json";
   const separator = normalized.includes("\\") ? "\\" : "/";
   return `${normalized}${separator}config.json`;
+}
+
+function getWizardDialogText(lang: Lang) {
+  if (lang === "ja") {
+    return {
+      existingTitle: "既存の設定ファイルがあります",
+      existingMessage:
+        "選択した場所には既に config.json があります。既存の設定を読み込みますか？\n\n「いいえ」を選ぶと、新しい設定作成へ進みます。保存時に上書き確認を行います。",
+      useExisting: "既存設定を使う",
+      createNew: "新規作成へ進む",
+      overwriteTitle: "設定ファイルを上書きしますか？",
+      overwriteMessage:
+        "この場所には既に設定ファイルがあります。上書きすると既存の内容は置き換えられます。\n\n上書きして続行しますか？",
+      overwrite: "上書きする",
+      cancel: "キャンセル",
+    };
+  }
+
+  return {
+    existingTitle: "Existing Config Found",
+    existingMessage:
+      "A config.json file already exists at the selected location. Do you want to load the existing config?\n\nChoose No to continue creating a new config. You will be asked again before overwriting.",
+    useExisting: "Use Existing",
+    createNew: "Create New",
+    overwriteTitle: "Overwrite Config File?",
+    overwriteMessage:
+      "A config file already exists at this location. Overwriting it will replace the existing contents.\n\nDo you want to overwrite it and continue?",
+    overwrite: "Overwrite",
+    cancel: "Cancel",
+  };
 }
 
 export function WelcomeWizard({ store, onFinish }: Props) {
@@ -71,9 +107,74 @@ export function WelcomeWizard({ store, onFinish }: Props) {
     }
   }
 
+  async function finishWithExistingConfig() {
+    setLoading(true);
+    try {
+      const config = await loadConfig(configPath.trim());
+      setConfig(config);
+
+      const nextSettings = {
+        ...state.settings,
+        language: lang,
+        configFilePath: configPath.trim(),
+        onboardingComplete: true,
+      };
+
+      setSettings(nextSettings);
+      await saveSettings(nextSettings);
+      onFinish();
+    } catch (error) {
+      setError(`Failed to load existing config: ${error}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleNextFromConfigStep() {
+    const path = configPath.trim();
+    if (!path) return;
+
+    if (await pathExists(path)) {
+      const text = getWizardDialogText(lang);
+      const useExisting = await ask(text.existingMessage, {
+        title: text.existingTitle,
+        kind: "warning",
+        okLabel: text.useExisting,
+        cancelLabel: text.createNew,
+      });
+
+      if (useExisting) {
+        await finishWithExistingConfig();
+        return;
+      }
+    }
+
+    setStep(3);
+  }
+
   async function handleFinish(createMode: boolean) {
     setLoading(true);
     try {
+      const path = configPath.trim();
+      if (!path) {
+        setLoading(false);
+        return;
+      }
+
+      if (await pathExists(path)) {
+        const text = getWizardDialogText(lang);
+        const overwrite = await confirm(text.overwriteMessage, {
+          title: text.overwriteTitle,
+          kind: "warning",
+          okLabel: text.overwrite,
+          cancelLabel: text.cancel,
+        });
+
+        if (!overwrite) {
+          return;
+        }
+      }
+
       const targets = pasteText
         .split(/[\n\r,]+/)
         .map((value) => value.trim())
@@ -95,13 +196,13 @@ export function WelcomeWizard({ store, onFinish }: Props) {
             : [],
       };
 
-      await saveConfig(configPath, config);
+      await saveConfig(path, config);
       setConfig(config);
 
       const nextSettings = {
         ...state.settings,
         language: lang,
-        configFilePath: configPath,
+        configFilePath: path,
         onboardingComplete: true,
       };
 
@@ -161,7 +262,11 @@ export function WelcomeWizard({ store, onFinish }: Props) {
               <button className="wizard-btn ghost" onClick={() => setStep(1)}>
                 {t(lang, "back")}
               </button>
-              <button className="wizard-btn primary" onClick={() => setStep(3)} disabled={!configPath.trim()}>
+              <button
+                className="wizard-btn primary"
+                onClick={() => void handleNextFromConfigStep()}
+                disabled={!configPath.trim() || loading}
+              >
                 {t(lang, "next")}
               </button>
             </div>

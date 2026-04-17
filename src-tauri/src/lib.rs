@@ -233,6 +233,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_config,
             save_config,
+            path_exists,
             execute_mode,
             load_settings,
             save_settings,

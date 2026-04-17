@@ -51,6 +51,11 @@ pub fn save_config(file_path: String, config: Config) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn path_exists(path: String) -> bool {
+    std::path::Path::new(&expand_home(&path)).exists()
+}
+
+#[tauri::command]
 pub fn execute_mode(mode_id: String, config: Config) -> Result<ModeExecutionResult, String> {
     let mode = config
         .modes

@@ -31,6 +31,10 @@ export async function saveConfig(filePath: string, config: Config): Promise<void
   return invoke<void>("save_config", { filePath, config });
 }
 
+export async function pathExists(path: string): Promise<boolean> {
+  return invoke<boolean>("path_exists", { path });
+}
+
 export async function executeMode(modeId: string, config: Config): Promise<ModeExecutionResult> {
   return invoke<ModeExecutionResult>("execute_mode", { modeId, config });
 }
