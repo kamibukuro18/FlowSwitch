@@ -1,6 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { save as pickSavePath } from "@tauri-apps/plugin-dialog";
-import { getDefaultConfigPath, loadConfig, saveSettings } from "../hooks/useTauri";
+import {
+  getDefaultConfigPath,
+  getLaunchAtStartup,
+  loadConfig,
+  saveSettings,
+  setLaunchAtStartup,
+} from "../hooks/useTauri";
 import { useAppStore } from "../store/appStore";
 import { t, Lang } from "../i18n";
 import "./SettingsView.css";
@@ -45,17 +51,49 @@ export function SettingsView({ store }: Props) {
   const lang = (state.settings.language ?? "en") as Lang;
   const [configPath, setConfigPath] = useState(state.settings.configFilePath ?? "");
   const [saved, setSaved] = useState(false);
+  const [startupBusy, setStartupBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getLaunchAtStartup()
+      .then((enabled) => {
+        if (!cancelled) setSettings({ launchAtStartup: enabled });
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [setSettings]);
 
   async function handleAppearanceChange(
     patch: {
       theme?: "light" | "dark" | "system";
       language?: "en" | "ja";
       keepRunningInTray?: boolean;
+      launchAtStartup?: boolean;
     }
   ) {
     const nextSettings = { ...state.settings, ...patch };
     setSettings(patch);
     await saveSettings(nextSettings).catch(() => {});
+  }
+
+  async function handleStartupChange(enabled: boolean) {
+    const previous = state.settings.launchAtStartup ?? false;
+    setStartupBusy(true);
+    setSettings({ launchAtStartup: enabled });
+
+    try {
+      await setLaunchAtStartup(enabled);
+      await saveSettings({ ...state.settings, launchAtStartup: enabled });
+    } catch (error) {
+      setSettings({ launchAtStartup: previous });
+      setError(`Failed to update startup setting: ${error}`);
+    } finally {
+      setStartupBusy(false);
+    }
   }
 
   async function handleLoadConfig() {
@@ -184,6 +222,16 @@ export function SettingsView({ store }: Props) {
             />
           </div>
           <p className="settings-section-desc">{t(lang, "tray_residency_desc")}</p>
+          <div className="settings-row">
+            <label>{t(lang, "startup_launch_label")}</label>
+            <input
+              type="checkbox"
+              checked={state.settings.launchAtStartup ?? false}
+              disabled={startupBusy}
+              onChange={(event) => void handleStartupChange(event.target.checked)}
+            />
+          </div>
+          <p className="settings-section-desc">{t(lang, "startup_launch_desc")}</p>
         </section>
 
         <section className="settings-section">

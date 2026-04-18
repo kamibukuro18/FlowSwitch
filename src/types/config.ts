@@ -89,5 +89,6 @@ export type AppSettings = {
   theme?: "light" | "dark" | "system";
   language?: "en" | "ja";
   keepRunningInTray?: boolean;
+  launchAtStartup?: boolean;
   onboardingComplete?: boolean;
 };

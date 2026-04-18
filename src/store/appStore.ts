@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: "dark",
   language: "en",
   keepRunningInTray: true,
+  launchAtStartup: false,
 };
 
 export function useAppStore() {

@@ -1,4 +1,9 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+import {
+  disable as disableAutostart,
+  enable as enableAutostart,
+  isEnabled as isAutostartEnabled,
+} from "@tauri-apps/plugin-autostart";
 import { register as registerGlobalShortcut, unregisterAll } from "@tauri-apps/plugin-global-shortcut";
 import { AppSettings, Config, ModeExecutionResult } from "../types";
 
@@ -45,6 +50,20 @@ export async function loadSettings(): Promise<AppSettings> {
 
 export async function saveSettings(settings: AppSettings): Promise<void> {
   return invoke<void>("save_settings", { settings });
+}
+
+export async function getLaunchAtStartup(): Promise<boolean> {
+  if (!isTauriRuntime()) return false;
+  return isAutostartEnabled();
+}
+
+export async function setLaunchAtStartup(enabled: boolean): Promise<void> {
+  if (!isTauriRuntime()) return;
+  if (enabled) {
+    await enableAutostart();
+    return;
+  }
+  await disableAutostart();
 }
 
 export async function registerShortcuts(

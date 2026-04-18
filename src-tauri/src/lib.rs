@@ -132,6 +132,10 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .setup(move |app| {
             let initial_settings = persisted_settings(app.handle());
             apply_macos_residency(app.handle(), initial_settings.keep_running_in_tray)?;
@@ -254,5 +258,8 @@ pub fn run() {
             if let tauri::RunEvent::Reopen { .. } = event {
                 show_main_window(app);
             }
+
+            #[cfg(not(target_os = "macos"))]
+            let _ = (app, event);
         });
 }

@@ -106,6 +106,11 @@ const dict = {
     en: "When enabled, closing the window keeps FlowSwitch running in the system tray on Windows and the menu bar on macOS.",
     ja: "有効にすると、ウィンドウを閉じても Windows ではシステムトレイ、macOS ではメニューバーに残ります。",
   },
+  startup_launch_label: { en: "Launch at startup", ja: "スタートアップ時に起動" },
+  startup_launch_desc: {
+    en: "Start FlowSwitch automatically when you sign in to your computer.",
+    ja: "PC にサインインしたときに FlowSwitch を自動で起動します。",
+  },
   auto_save_note: { en: "Changes are saved automatically.", ja: "変更は自動で保存されます。" },
   config_format: { en: "Config File Format", ja: "設定ファイル形式" },
   config_format_desc: {
