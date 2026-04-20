@@ -169,6 +169,33 @@ function extractDroppedUrls(dataTransfer: DataTransfer): string[] {
   );
 }
 
+function getLabelFromPastedLine(line: string, urls: string[]) {
+  return urls
+    .reduce((value, url) => value.replace(url, ""), line)
+    .replace(/^[\s,|:;-]+/, "")
+    .replace(/[\s,|:;-]+$/, "")
+    .trim();
+}
+
+function parsePastedUrlTargets(text: string, defaultLabel: string): Target[] {
+  const fallbackLabel = defaultLabel.trim();
+  const targets: Target[] = [];
+
+  for (const line of text.split(/\r?\n/)) {
+    const matches = line.match(/https?:\/\/[^\s,]+/gi) ?? [];
+    const lineLabel = getLabelFromPastedLine(line, matches);
+    for (const url of matches) {
+      targets.push({
+        type: "url",
+        value: url.trim(),
+        label: fallbackLabel || lineLabel,
+      });
+    }
+  }
+
+  return targets;
+}
+
 function TargetRowIcon({ target }: { target: Target }) {
   const [faviconFailed, setFaviconFailed] = useState(false);
   const faviconUrl = target.type === "url" ? getFaviconUrl(target.value) : "";
@@ -211,6 +238,7 @@ export function ModeEditorView({ store }: Props) {
 
   // Paste URLs
   const [pasteText, setPasteText] = useState("");
+  const [pasteLabel, setPasteLabel] = useState("");
 
   // Bookmarks
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
@@ -289,6 +317,7 @@ export function ModeEditorView({ store }: Props) {
   function closeAddDialog() {
     if (activeTab === "paste") {
       setPasteText("");
+      setPasteLabel("");
     }
     if (activeTab === "bookmarks") {
       setBookmarkSearch("");
@@ -594,8 +623,9 @@ export function ModeEditorView({ store }: Props) {
   // 笏笏 Paste URLs 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 
   function handlePasteAdd() {
-    addUrlTargets(pasteText.split(/[\n\r,]+/));
+    addTargetsAndSelect(parsePastedUrlTargets(pasteText, pasteLabel));
     setPasteText("");
+    setPasteLabel("");
     setActiveTab(null);
   }
 
@@ -885,17 +915,26 @@ export function ModeEditorView({ store }: Props) {
     if (activeTab === "paste") {
       return (
         <div className="tab-panel">
-            <textarea
-              className="paste-textarea"
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-              placeholder={t(lang, "paste_ph")}
-              autoFocus
+          <div className="form-group paste-label-group">
+            <label>{t(lang, "paste_label")}</label>
+            <input
+              type="text"
+              value={pasteLabel}
+              onChange={(e) => setPasteLabel(e.target.value)}
+              placeholder={t(lang, "paste_label_ph")}
             />
-            <div className="tab-panel-footer">
-              <button className="btn-save" onClick={handlePasteAdd} disabled={!pasteText.trim()}>{t(lang, "add")}</button>
-              <button className="back-btn" onClick={closeAddPanel}>{t(lang, "cancel")}</button>
-            </div>
+          </div>
+          <textarea
+            className="paste-textarea"
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder={t(lang, "paste_ph")}
+            autoFocus
+          />
+          <div className="tab-panel-footer">
+            <button className="btn-save" onClick={handlePasteAdd} disabled={!pasteText.trim()}>{t(lang, "add")}</button>
+            <button className="back-btn" onClick={closeAddPanel}>{t(lang, "cancel")}</button>
+          </div>
         </div>
       );
     }

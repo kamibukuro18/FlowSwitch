@@ -10,6 +10,11 @@ const dict = {
   hide_mode: { en: "Hide mode", ja: "モードを非表示" },
   unhide_mode: { en: "Show mode", ja: "モードを再表示" },
   hidden_badge: { en: "Hidden", ja: "非表示" },
+  paste_label: { en: "Label (optional)", ja: "ラベル（任意）" },
+  paste_label_ph: {
+    en: "Default label, or write per line: Label | https://...",
+    ja: "共通ラベル。行ごとに「ラベル | https://...」も使えます。",
+  },
   nav_modes: { en: "Modes", ja: "モード" },
   nav_new_mode: { en: "New Mode", ja: "新規モード" },
   nav_settings: { en: "Settings", ja: "設定" },
