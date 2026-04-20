@@ -58,6 +58,7 @@ export type Mode = {
   shortcut?: string;
   color?: string;
   icon?: string;
+  hidden?: boolean;
   keepAliveApps?: string[];
   exitAction?: ExitAction;
   closeOthersOnLaunch?: boolean;

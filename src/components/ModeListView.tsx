@@ -19,6 +19,7 @@ export function ModeListView({ store }: Props) {
     navigateTo,
     startEditingMode,
     deleteMode,
+    setModeHidden,
     setError,
     setLoading,
     setSearchQuery,
@@ -26,10 +27,14 @@ export function ModeListView({ store }: Props) {
   const lang = (state.settings.language ?? "en") as Lang;
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [executingId, setExecutingId] = useState<string | null>(null);
+  const [showHidden, setShowHidden] = useState(false);
 
   const modes = state.config?.modes ?? [];
+  const visibleModes = modes.filter((mode) => !mode.hidden);
+  const hiddenModes = modes.filter((mode) => mode.hidden);
+  const activeModes = showHidden ? hiddenModes : visibleModes;
 
-  const filtered = modes.filter((mode) => {
+  const filtered = activeModes.filter((mode) => {
     if (!state.searchQuery) return true;
     const query = state.searchQuery.toLowerCase();
     return (
@@ -83,12 +88,29 @@ export function ModeListView({ store }: Props) {
     });
   }
 
+  function handleToggleHidden(modeId: string, hidden: boolean) {
+    setModeHidden(modeId, hidden);
+    if (state.searchQuery) {
+      setSearchQuery("");
+    }
+  }
+
   return (
     <div className="mode-list-view">
       <div className="view-header">
         <div className="header-left">
           <h1>{t(lang, "nav_modes")}</h1>
-          <span className="mode-count">{modes.length}</span>
+          <span className="mode-count">{visibleModes.length}</span>
+          {hiddenModes.length > 0 || showHidden ? (
+            <button
+              className={`hidden-toggle ${showHidden ? "active" : ""}`}
+              onClick={() => setShowHidden((value) => !value)}
+              title={showHidden ? t(lang, "show_visible_modes") : t(lang, "show_hidden_modes")}
+            >
+              {showHidden ? t(lang, "visible_modes") : t(lang, "hidden_modes")}{" "}
+              <span>{showHidden ? visibleModes.length : hiddenModes.length}</span>
+            </button>
+          ) : null}
         </div>
         <div className="header-actions">
           <div className="search-box">
@@ -125,10 +147,26 @@ export function ModeListView({ store }: Props) {
             </>
           ) : (
             <>
-              <p>{t(lang, "no_modes")}</p>
-              <button className="btn-primary" onClick={handleCreateMode}>
-                {t(lang, "create_mode")}
-              </button>
+              <p>
+                {showHidden
+                  ? t(lang, "no_hidden_modes")
+                  : hiddenModes.length > 0
+                    ? t(lang, "all_modes_hidden")
+                    : t(lang, "no_modes")}
+              </p>
+              {showHidden ? (
+                <button className="btn-secondary" onClick={() => setShowHidden(false)}>
+                  {t(lang, "show_visible_modes")}
+                </button>
+              ) : hiddenModes.length > 0 ? (
+                <button className="btn-secondary" onClick={() => setShowHidden(true)}>
+                  {t(lang, "show_hidden_modes")}
+                </button>
+              ) : !showHidden ? (
+                <button className="btn-primary" onClick={handleCreateMode}>
+                  {t(lang, "create_mode")}
+                </button>
+              ) : null}
             </>
           )}
         </div>
@@ -143,6 +181,7 @@ export function ModeListView({ store }: Props) {
               onExecute={() => handleExecute(mode.id)}
               onEdit={() => startEditingMode(mode)}
               onDelete={() => deleteMode(mode.id)}
+              onToggleHidden={() => handleToggleHidden(mode.id, !mode.hidden)}
             />
           ))}
         </div>

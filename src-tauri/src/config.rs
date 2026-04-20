@@ -67,6 +67,8 @@ pub struct Mode {
     pub color: Option<String>,
     pub icon: Option<String>,
     #[serde(default)]
+    pub hidden: bool,
+    #[serde(default)]
     pub keep_alive_apps: Vec<String>,
     #[serde(default)]
     pub exit_action: ExitAction,

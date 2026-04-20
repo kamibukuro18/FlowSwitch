@@ -1,6 +1,15 @@
 export type Lang = "en" | "ja";
 
 const dict = {
+  no_hidden_modes: { en: "No hidden modes.", ja: "非表示のモードはありません。" },
+  all_modes_hidden: { en: "All modes are hidden.", ja: "すべてのモードが非表示です。" },
+  hidden_modes: { en: "Hidden", ja: "非表示" },
+  visible_modes: { en: "Visible", ja: "表示中" },
+  show_hidden_modes: { en: "Show hidden modes", ja: "非表示のモードを表示" },
+  show_visible_modes: { en: "Show visible modes", ja: "表示中のモードへ戻る" },
+  hide_mode: { en: "Hide mode", ja: "モードを非表示" },
+  unhide_mode: { en: "Show mode", ja: "モードを再表示" },
+  hidden_badge: { en: "Hidden", ja: "非表示" },
   nav_modes: { en: "Modes", ja: "モード" },
   nav_new_mode: { en: "New Mode", ja: "新規モード" },
   nav_settings: { en: "Settings", ja: "設定" },

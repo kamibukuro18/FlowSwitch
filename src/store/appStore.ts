@@ -109,6 +109,21 @@ export function useAppStore() {
     });
   }, []);
 
+  const setModeHidden = useCallback((modeId: string, hidden: boolean) => {
+    setState((s) => {
+      if (!s.config) return s;
+      return {
+        ...s,
+        config: {
+          ...s.config,
+          modes: s.config.modes.map((mode) =>
+            mode.id === modeId ? { ...mode, hidden } : mode
+          ),
+        },
+      };
+    });
+  }, []);
+
   return {
     state,
     setConfig,
@@ -123,5 +138,6 @@ export function useAppStore() {
     showToast,
     saveMode,
     deleteMode,
+    setModeHidden,
   };
 }

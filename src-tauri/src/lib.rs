@@ -194,7 +194,11 @@ pub fn run() {
                                     let guard = state.config.lock().unwrap();
                                     guard
                                         .as_ref()
-                                        .and_then(|cfg| cfg.modes.iter().find(|m| m.id == mode_id))
+                                        .and_then(|cfg| {
+                                            cfg.modes
+                                                .iter()
+                                                .find(|m| m.id == mode_id && !m.hidden)
+                                        })
                                         .map(executor::execute_mode)
                                 };
                                 if let Some(r) = result {

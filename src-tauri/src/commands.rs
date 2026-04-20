@@ -518,7 +518,8 @@ pub fn update_tray_menu(app: AppHandle, config: Config) -> Result<(), String> {
         *state.config.lock().unwrap() = Some(config.clone());
     }
     // Rebuild and apply the tray menu
-    let menu = crate::build_tray_menu(&app, &config.modes).map_err(|e| e.to_string())?;
+    let visible_modes: Vec<_> = config.modes.iter().filter(|mode| !mode.hidden).cloned().collect();
+    let menu = crate::build_tray_menu(&app, &visible_modes).map_err(|e| e.to_string())?;
     if let Some(tray) = app.tray_by_id("main") {
         tray.set_menu(Some(menu)).map_err(|e| e.to_string())?;
     }

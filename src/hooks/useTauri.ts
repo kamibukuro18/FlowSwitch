@@ -77,6 +77,7 @@ export async function registerShortcuts(
   const seen = new Set<string>();
 
   for (const mode of config.modes) {
+    if (mode.hidden) continue;
     if (!mode.shortcut?.trim()) continue;
 
     const shortcut = normalizeShortcut(mode.shortcut);

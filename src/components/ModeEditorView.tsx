@@ -1234,6 +1234,15 @@ export function ModeEditorView({ store }: Props) {
                 {mode.closeDirectoriesOnLaunch ? "ON" : "OFF"}
               </button>
             </div>
+            <div className="toggle-row">
+              <label className="toggle-label">{t(lang, "hide_mode")}</label>
+              <button
+                className={`toggle-btn ${mode.hidden ? "on" : "off"}`}
+                onClick={() => update({ hidden: !mode.hidden })}
+              >
+                {mode.hidden ? "ON" : "OFF"}
+              </button>
+            </div>
           </div>
         </div>
 
